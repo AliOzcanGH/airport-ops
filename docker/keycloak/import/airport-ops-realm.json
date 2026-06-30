@@ -1,0 +1,52 @@
+{
+  "realm": "airport-ops",
+  "enabled": true,
+  "roles": {
+    "realm": [
+      {
+        "name": "PLATFORM_ADMIN",
+        "description": "Platform administrator role for the Airport Ops local lab"
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "airport-ops-local",
+      "name": "Airport Ops Local",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "http://localhost:*/*"
+      ],
+      "webOrigins": [
+        "*"
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "platform.admin@demo.com",
+      "firstName": "Platform",
+      "lastName": "Admin",
+      "email": "platform.admin@demo.com",
+      "enabled": true,
+      "emailVerified": true,
+      "requiredActions": [],
+      "realmRoles": [
+        "PLATFORM_ADMIN"
+      ],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Admin123!",
+          "temporary": false
+        }
+      ]
+    }
+  ]
+}

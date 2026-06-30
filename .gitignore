@@ -1,0 +1,54 @@
+# Gradle and Java build output
+**/.gradle/
+**/build/
+**/bin/
+**/out/
+*.class
+*.log
+**/HELP.md
+
+# IDE and editor files
+.idea/
+**/.idea/
+.vscode/
+**/.vscode/
+*.iws
+*.iml
+*.ipr
+.classpath
+.factorypath
+.project
+.settings/
+.apt_generated/
+.springBeans
+.sts4-cache/
+nbproject/private/
+nbbuild/
+dist/
+nbdist/
+.nb-gradle/
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+**/application-local.properties
+**/application-local.yml
+**/application-local.yaml
+
+# Operating system files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Local agent and modernization tooling
+.agents/
+.codex/
+.github/modernize/
+
+# Gradle wrapper scripts and gradle-wrapper.jar are intentionally not ignored.

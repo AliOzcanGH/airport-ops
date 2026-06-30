@@ -1,0 +1,76 @@
+package com.aliozcan.airportops.iam_service.auth;
+
+import com.aliozcan.airportops.iam_service.auth.dto.AuthMeResponse;
+import com.aliozcan.airportops.iam_service.domain.model.UserEntity;
+import com.aliozcan.airportops.iam_service.domain.model.enums.UserStatus;
+import com.aliozcan.airportops.iam_service.repository.PlatformAuthorizationRepository;
+import com.aliozcan.airportops.iam_service.repository.UserRepository;
+import org.junit.jupiter.api.Test;
+import org.springframework.security.oauth2.jwt.Jwt;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+class AuthMeServiceTests {
+
+    @Test
+    void returnsEmptyIamAuthorizationWhenProvisionedUserHasNoPlatformRoles() {
+        UserRepository userRepository = mock(UserRepository.class);
+        PlatformAuthorizationRepository authorizationRepository =
+                mock(PlatformAuthorizationRepository.class);
+        KeycloakRealmRoleExtractor roleExtractor = new KeycloakRealmRoleExtractor();
+        UserEntity user = mock(UserEntity.class);
+        UUID userId = UUID.randomUUID();
+        Jwt jwt = jwt(Map.of(
+                "email", "platform.admin@demo.com",
+                "realm_access", Map.of("roles", List.of("PLATFORM_ADMIN"))
+        ));
+
+        when(user.getId()).thenReturn(userId);
+        when(user.getStatus()).thenReturn(UserStatus.ACTIVE);
+        when(userRepository.findActiveByEmail("platform.admin@demo.com"))
+                .thenReturn(Optional.of(user));
+        when(authorizationRepository.findPlatformAuthorizationByUserId(userId))
+                .thenReturn(List.of());
+
+        AuthMeService service = new AuthMeService(
+                userRepository,
+                authorizationRepository,
+                roleExtractor);
+
+        AuthMeResponse response = service.getCurrentUser(jwt);
+
+        assertThat(response.iamRoles()).isEmpty();
+        assertThat(response.permissions()).isEmpty();
+        assertThat(response.keycloakRoles()).containsExactly("PLATFORM_ADMIN");
+    }
+
+    @Test
+    void returnsEmptyKeycloakRolesForUnexpectedClaimShape() {
+        KeycloakRealmRoleExtractor roleExtractor = new KeycloakRealmRoleExtractor();
+        Jwt jwt = jwt(Map.of(
+                "email", "platform.admin@demo.com",
+                "realm_access", "unexpected"
+        ));
+
+        assertThat(roleExtractor.extract(jwt)).isEmpty();
+    }
+
+    private Jwt jwt(Map<String, Object> claims) {
+        Instant issuedAt = Instant.now();
+        return Jwt.withTokenValue("test-token")
+                .headers(headers -> headers.put("alg", "RS256"))
+                .subject("keycloak-platform-admin-id")
+                .issuedAt(issuedAt)
+                .expiresAt(issuedAt.plusSeconds(300))
+                .claims(jwtClaims -> jwtClaims.putAll(claims))
+                .build();
+    }
+}
