@@ -1,6 +1,9 @@
 package com.aliozcan.airportops.iam_service.auth;
 
 import com.aliozcan.airportops.iam_service.auth.dto.ErrorResponse;
+import com.aliozcan.airportops.iam_service.platform.invitation.InvitationAlreadyUsedException;
+import com.aliozcan.airportops.iam_service.platform.invitation.InvitationExpiredException;
+import com.aliozcan.airportops.iam_service.platform.invitation.InvitationNotFoundException;
 import com.aliozcan.airportops.iam_service.platform.invitation.PendingInvitationExistsException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
@@ -20,6 +23,10 @@ public class AuthExceptionHandler {
     private static final String VALIDATION_ERROR_MESSAGE = "Request validation failed";
     private static final String PENDING_INVITATION_EXISTS_MESSAGE =
             "A pending invitation already exists for this email";
+    private static final String INVITATION_NOT_FOUND_MESSAGE = "Invitation not found";
+    private static final String INVITATION_ALREADY_USED_MESSAGE =
+            "Invitation has already been used";
+    private static final String INVITATION_EXPIRED_MESSAGE = "Invitation has expired";
 
     @ExceptionHandler(InvalidLoginException.class)
     public ResponseEntity<ErrorResponse> handleInvalidLogin(
@@ -76,6 +83,39 @@ public class AuthExceptionHandler {
                 HttpStatus.CONFLICT,
                 "PENDING_INVITATION_EXISTS",
                 PENDING_INVITATION_EXISTS_MESSAGE,
+                request);
+    }
+
+    @ExceptionHandler(InvitationNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleInvitationNotFound(
+            InvitationNotFoundException exception,
+            HttpServletRequest request) {
+        return errorResponse(
+                HttpStatus.NOT_FOUND,
+                "INVITATION_NOT_FOUND",
+                INVITATION_NOT_FOUND_MESSAGE,
+                request);
+    }
+
+    @ExceptionHandler(InvitationAlreadyUsedException.class)
+    public ResponseEntity<ErrorResponse> handleInvitationAlreadyUsed(
+            InvitationAlreadyUsedException exception,
+            HttpServletRequest request) {
+        return errorResponse(
+                HttpStatus.CONFLICT,
+                "INVITATION_ALREADY_USED",
+                INVITATION_ALREADY_USED_MESSAGE,
+                request);
+    }
+
+    @ExceptionHandler(InvitationExpiredException.class)
+    public ResponseEntity<ErrorResponse> handleInvitationExpired(
+            InvitationExpiredException exception,
+            HttpServletRequest request) {
+        return errorResponse(
+                HttpStatus.GONE,
+                "INVITATION_EXPIRED",
+                INVITATION_EXPIRED_MESSAGE,
                 request);
     }
 
