@@ -26,6 +26,19 @@
       "webOrigins": [
         "*"
       ]
+    },
+    {
+      "clientId": "iam-service-admin",
+      "name": "IAM Service Admin",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "clientAuthenticatorType": "client-secret",
+      "secret": "${IAM_SERVICE_ADMIN_CLIENT_SECRET}",
+      "publicClient": false,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": true
     }
   ],
   "users": [
@@ -47,6 +60,16 @@
           "temporary": false
         }
       ]
+    },
+    {
+      "username": "service-account-iam-service-admin",
+      "enabled": true,
+      "serviceAccountClientId": "iam-service-admin",
+      "clientRoles": {
+        "realm-management": [
+          "manage-users"
+        ]
+      }
     }
   ]
 }

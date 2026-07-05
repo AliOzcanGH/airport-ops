@@ -33,6 +33,7 @@ public class SecurityConfig {
                         .requestMatchers("/error").permitAll()
                         .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
                         .requestMatchers(HttpMethod.POST, "/invitations/validate").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/invitations/accept").permitAll()
                         .requestMatchers(HttpMethod.GET, "/auth/keycloak/me").authenticated()
                         .requestMatchers(HttpMethod.GET, "/auth/me").authenticated()
                         .requestMatchers(HttpMethod.GET, "/platform/authorization/probe")

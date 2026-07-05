@@ -1,5 +1,6 @@
 package com.aliozcan.airportops.iam_service.domain.model;
 
+import com.aliozcan.airportops.iam_service.domain.model.enums.AuthProvider;
 import com.aliozcan.airportops.iam_service.domain.model.enums.UserStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -21,7 +22,7 @@ public class UserEntity {
     @Column(nullable = false, length = 320)
     private String email;
 
-    @Column(name = "password_hash", nullable = false, length = 255)
+    @Column(name = "password_hash", length = 255)
     private String passwordHash;
 
     @Column(name = "full_name", nullable = false, length = 150)
@@ -40,7 +41,73 @@ public class UserEntity {
     @Column(name = "deleted_at")
     private Instant deletedAt;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "auth_provider", nullable = false, length = 30)
+    private AuthProvider authProvider;
+
+    @Column(name = "keycloak_user_id", length = 64)
+    private String keycloakUserId;
+
     protected UserEntity() {
+    }
+
+    private UserEntity(
+            UUID id,
+            String email,
+            String passwordHash,
+            String fullName,
+            UserStatus status,
+            Instant createdAt,
+            Instant updatedAt,
+            Instant deletedAt,
+            AuthProvider authProvider,
+            String keycloakUserId) {
+        this.id = id;
+        this.email = email;
+        this.passwordHash = passwordHash;
+        this.fullName = fullName;
+        this.status = status;
+        this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
+        this.deletedAt = deletedAt;
+        this.authProvider = authProvider;
+        this.keycloakUserId = keycloakUserId;
+    }
+
+    public static UserEntity provisioningKeycloakUser(
+            String email,
+            String fullName,
+            Instant now) {
+        return new UserEntity(
+                UUID.randomUUID(),
+                email,
+                null,
+                fullName,
+                UserStatus.PROVISIONING,
+                now,
+                now,
+                null,
+                AuthProvider.KEYCLOAK,
+                null
+        );
+    }
+
+    public void activateWithKeycloakSubject(String keycloakUserId, Instant now) {
+        if (status != UserStatus.PROVISIONING) {
+            throw new IllegalStateException("User is not awaiting Keycloak provisioning");
+        }
+        this.keycloakUserId = keycloakUserId;
+        this.status = UserStatus.ACTIVE;
+        this.updatedAt = now;
+    }
+
+    public void markKeycloakSyncFailed(Instant now) {
+        if (status != UserStatus.PROVISIONING) {
+            throw new IllegalStateException("User is not awaiting Keycloak provisioning");
+        }
+        this.keycloakUserId = null;
+        this.status = UserStatus.KEYCLOAK_SYNC_FAILED;
+        this.updatedAt = now;
     }
 
     public UUID getId() {
@@ -73,5 +140,13 @@ public class UserEntity {
 
     public Instant getDeletedAt() {
         return deletedAt;
+    }
+
+    public AuthProvider getAuthProvider() {
+        return authProvider;
+    }
+
+    public String getKeycloakUserId() {
+        return keycloakUserId;
     }
 }
