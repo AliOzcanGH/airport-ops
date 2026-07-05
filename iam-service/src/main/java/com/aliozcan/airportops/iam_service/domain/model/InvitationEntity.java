@@ -43,6 +43,12 @@ public class InvitationEntity {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
+    @Column(name = "organization_id")
+    private UUID organizationId;
+
+    @Column(name = "accepted_at")
+    private Instant acceptedAt;
+
     protected InvitationEntity() {
     }
 
@@ -55,7 +61,9 @@ public class InvitationEntity {
             UUID createdByUserId,
             Instant expiresAt,
             Instant createdAt,
-            Instant updatedAt) {
+            Instant updatedAt,
+            UUID organizationId,
+            Instant acceptedAt) {
         this.id = id;
         this.companyName = companyName;
         this.adminEmail = adminEmail;
@@ -65,6 +73,8 @@ public class InvitationEntity {
         this.expiresAt = expiresAt;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
+        this.organizationId = organizationId;
+        this.acceptedAt = acceptedAt;
     }
 
     public static InvitationEntity pending(
@@ -83,8 +93,20 @@ public class InvitationEntity {
                 createdByUserId,
                 expiresAt,
                 createdAt,
-                createdAt
+                createdAt,
+                null,
+                null
         );
+    }
+
+    public void accept(UUID organizationId, Instant now) {
+        if (status != InvitationStatus.PENDING) {
+            throw new IllegalStateException("Invitation is not pending");
+        }
+        this.status = InvitationStatus.ACCEPTED;
+        this.organizationId = organizationId;
+        this.acceptedAt = now;
+        this.updatedAt = now;
     }
 
     public UUID getId() {
@@ -121,5 +143,13 @@ public class InvitationEntity {
 
     public Instant getUpdatedAt() {
         return updatedAt;
+    }
+
+    public UUID getOrganizationId() {
+        return organizationId;
+    }
+
+    public Instant getAcceptedAt() {
+        return acceptedAt;
     }
 }
