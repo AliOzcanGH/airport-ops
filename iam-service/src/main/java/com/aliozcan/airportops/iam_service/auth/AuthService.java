@@ -34,7 +34,7 @@ public class AuthService {
     public LoginResponse login(LoginRequest request) {
         String email = request.email().trim();
 
-        UserEntity user = userRepository.findActiveByEmail(email)
+        UserEntity user = userRepository.findActiveLocalByEmail(email)
                 .orElseThrow(InvalidLoginException::new);
 
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {

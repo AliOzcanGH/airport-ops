@@ -4,7 +4,10 @@ import com.aliozcan.airportops.iam_service.auth.dto.ErrorResponse;
 import com.aliozcan.airportops.iam_service.platform.invitation.InvitationAlreadyUsedException;
 import com.aliozcan.airportops.iam_service.platform.invitation.InvitationExpiredException;
 import com.aliozcan.airportops.iam_service.platform.invitation.InvitationNotFoundException;
+import com.aliozcan.airportops.iam_service.platform.invitation.IamUserAlreadyExistsException;
+import com.aliozcan.airportops.iam_service.platform.invitation.OrganizationAlreadyExistsException;
 import com.aliozcan.airportops.iam_service.platform.invitation.PendingInvitationExistsException;
+import com.aliozcan.airportops.iam_service.platform.invitation.ProvisioningInvariantException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -27,6 +30,12 @@ public class AuthExceptionHandler {
     private static final String INVITATION_ALREADY_USED_MESSAGE =
             "Invitation has already been used";
     private static final String INVITATION_EXPIRED_MESSAGE = "Invitation has expired";
+    private static final String IAM_USER_ALREADY_EXISTS_MESSAGE =
+            "An IAM user already exists for this email";
+    private static final String ORGANIZATION_ALREADY_EXISTS_MESSAGE =
+            "An organization already exists with this name";
+    private static final String PROVISIONING_CONFIGURATION_ERROR_MESSAGE =
+            "Invitation provisioning is temporarily unavailable";
 
     @ExceptionHandler(InvalidLoginException.class)
     public ResponseEntity<ErrorResponse> handleInvalidLogin(
@@ -116,6 +125,39 @@ public class AuthExceptionHandler {
                 HttpStatus.GONE,
                 "INVITATION_EXPIRED",
                 INVITATION_EXPIRED_MESSAGE,
+                request);
+    }
+
+    @ExceptionHandler(IamUserAlreadyExistsException.class)
+    public ResponseEntity<ErrorResponse> handleIamUserAlreadyExists(
+            IamUserAlreadyExistsException exception,
+            HttpServletRequest request) {
+        return errorResponse(
+                HttpStatus.CONFLICT,
+                "IAM_USER_ALREADY_EXISTS",
+                IAM_USER_ALREADY_EXISTS_MESSAGE,
+                request);
+    }
+
+    @ExceptionHandler(OrganizationAlreadyExistsException.class)
+    public ResponseEntity<ErrorResponse> handleOrganizationAlreadyExists(
+            OrganizationAlreadyExistsException exception,
+            HttpServletRequest request) {
+        return errorResponse(
+                HttpStatus.CONFLICT,
+                "ORGANIZATION_ALREADY_EXISTS",
+                ORGANIZATION_ALREADY_EXISTS_MESSAGE,
+                request);
+    }
+
+    @ExceptionHandler(ProvisioningInvariantException.class)
+    public ResponseEntity<ErrorResponse> handleProvisioningInvariant(
+            ProvisioningInvariantException exception,
+            HttpServletRequest request) {
+        return errorResponse(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                "PROVISIONING_CONFIGURATION_ERROR",
+                PROVISIONING_CONFIGURATION_ERROR_MESSAGE,
                 request);
     }
 
