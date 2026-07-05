@@ -21,6 +21,10 @@ public class TestJwtDecoderConfig {
     public static final String MISSING_EMAIL_TOKEN = "missing-email-token";
     public static final String BLANK_EMAIL_TOKEN = "blank-email-token";
     public static final String INVALID_TOKEN = "invalid-token";
+    public static final String K8_ACTIVE_TOKEN = "k8-active-token";
+    public static final String K8_PROVISIONING_TOKEN = "k8-provisioning-token";
+    public static final String K8_SYNC_FAILED_TOKEN = "k8-sync-failed-token";
+    public static final String K8_INACTIVE_TOKEN = "k8-inactive-token";
     public static final String ISSUER = "http://127.0.0.1:8085/realms/airport-ops";
     public static final String EMAIL = "platform.admin@demo.com";
     public static final String PERMISSIONLESS_EMAIL = "k4.permissionless@integration.test";
@@ -35,6 +39,12 @@ public class TestJwtDecoderConfig {
                 case PERMISSIONLESS_TOKEN -> jwt(token, PERMISSIONLESS_EMAIL, true);
                 case MISSING_EMAIL_TOKEN -> jwt(token, null, false);
                 case BLANK_EMAIL_TOKEN -> jwt(token, "   ", true);
+                case K8_ACTIVE_TOKEN -> jwt(token, "active@k8.auth.test", true);
+                case K8_PROVISIONING_TOKEN ->
+                        jwt(token, "provisioning@k8.auth.test", true);
+                case K8_SYNC_FAILED_TOKEN ->
+                        jwt(token, "failed@k8.auth.test", true);
+                case K8_INACTIVE_TOKEN -> jwt(token, "inactive@k8.auth.test", true);
                 default -> throw new BadJwtException("Invalid test token");
             };
         };
