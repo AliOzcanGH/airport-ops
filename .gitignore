@@ -7,6 +7,13 @@
 *.log
 **/HELP.md
 
+# Node and frontend build output
+**/node_modules/
+**/.vite/
+**/coverage/
+web/dist/
+*.tsbuildinfo
+
 # IDE and editor files
 .idea/
 **/.idea/
