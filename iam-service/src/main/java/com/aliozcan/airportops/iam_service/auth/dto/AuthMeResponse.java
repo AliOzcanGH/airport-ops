@@ -14,6 +14,9 @@ public record AuthMeResponse(
         UserStatus iamUserStatus,
         SortedSet<String> keycloakRoles,
         SortedSet<String> iamRoles,
-        SortedSet<String> permissions
+        SortedSet<String> permissions,
+        SortedSet<WorkspaceType> availableWorkspaces,
+        WorkspaceType defaultWorkspace,
+        TenantContextResponse tenantContext
 ) {
 }

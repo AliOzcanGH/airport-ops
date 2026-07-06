@@ -1,6 +1,8 @@
 package com.aliozcan.airportops.iam_service.auth;
 
 import com.aliozcan.airportops.iam_service.auth.dto.ErrorResponse;
+import com.aliozcan.airportops.iam_service.auth.session.AuthProviderUnavailableException;
+import com.aliozcan.airportops.iam_service.auth.session.SessionExpiredException;
 import com.aliozcan.airportops.iam_service.platform.invitation.InvitationAlreadyUsedException;
 import com.aliozcan.airportops.iam_service.platform.invitation.InvitationExpiredException;
 import com.aliozcan.airportops.iam_service.platform.invitation.InvitationNotFoundException;
@@ -36,6 +38,10 @@ public class AuthExceptionHandler {
             "An organization already exists with this name";
     private static final String PROVISIONING_CONFIGURATION_ERROR_MESSAGE =
             "Invitation provisioning is temporarily unavailable";
+    private static final String AUTH_PROVIDER_UNAVAILABLE_MESSAGE =
+            "Authentication provider is temporarily unavailable";
+    private static final String SESSION_EXPIRED_MESSAGE =
+            "Session has expired";
 
     @ExceptionHandler(InvalidLoginException.class)
     public ResponseEntity<ErrorResponse> handleInvalidLogin(
@@ -71,6 +77,28 @@ public class AuthExceptionHandler {
         );
 
         return ResponseEntity.status(status).body(response);
+    }
+
+    @ExceptionHandler(AuthProviderUnavailableException.class)
+    public ResponseEntity<ErrorResponse> handleAuthProviderUnavailable(
+            AuthProviderUnavailableException exception,
+            HttpServletRequest request) {
+        return errorResponse(
+                HttpStatus.SERVICE_UNAVAILABLE,
+                "AUTH_PROVIDER_UNAVAILABLE",
+                AUTH_PROVIDER_UNAVAILABLE_MESSAGE,
+                request);
+    }
+
+    @ExceptionHandler(SessionExpiredException.class)
+    public ResponseEntity<ErrorResponse> handleSessionExpired(
+            SessionExpiredException exception,
+            HttpServletRequest request) {
+        return errorResponse(
+                HttpStatus.UNAUTHORIZED,
+                "SESSION_EXPIRED",
+                SESSION_EXPIRED_MESSAGE,
+                request);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

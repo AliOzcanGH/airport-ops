@@ -10,6 +10,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.access.AccessDeniedHandler;
+import org.springframework.security.web.csrf.CsrfException;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -24,6 +25,9 @@ public class IamAccessDeniedHandler implements AccessDeniedHandler {
     private static final String MISSING_PERMISSION_CODE = "MISSING_PERMISSION";
     private static final String MISSING_PERMISSION_MESSAGE =
             "Authenticated user does not have the required permission";
+    private static final String CSRF_VALIDATION_FAILED_CODE = "CSRF_VALIDATION_FAILED";
+    private static final String CSRF_VALIDATION_FAILED_MESSAGE =
+            "CSRF token is missing or invalid";
 
     private final ObjectMapper objectMapper;
 
@@ -37,13 +41,14 @@ public class IamAccessDeniedHandler implements AccessDeniedHandler {
             HttpServletResponse response,
             AccessDeniedException accessDeniedException) throws IOException {
         HttpStatus status = HttpStatus.FORBIDDEN;
-        boolean unprovisioned = isUnprovisioned(authentication());
-        String errorCode = unprovisioned
-                ? USER_NOT_PROVISIONED_CODE
-                : MISSING_PERMISSION_CODE;
-        String message = unprovisioned
-                ? USER_NOT_PROVISIONED_MESSAGE
-                : MISSING_PERMISSION_MESSAGE;
+        boolean csrfFailure = accessDeniedException instanceof CsrfException;
+        boolean unprovisioned = !csrfFailure && isUnprovisioned(authentication());
+        String errorCode = csrfFailure
+                ? CSRF_VALIDATION_FAILED_CODE
+                : unprovisioned ? USER_NOT_PROVISIONED_CODE : MISSING_PERMISSION_CODE;
+        String message = csrfFailure
+                ? CSRF_VALIDATION_FAILED_MESSAGE
+                : unprovisioned ? USER_NOT_PROVISIONED_MESSAGE : MISSING_PERMISSION_MESSAGE;
 
         ErrorResponse errorResponse = new ErrorResponse(
                 Instant.now(),

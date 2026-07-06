@@ -9,6 +9,7 @@ import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.csrf.MissingCsrfTokenException;
 
 import java.util.List;
 
@@ -50,6 +51,23 @@ class IamAccessDeniedHandlerTests {
         MockHttpServletResponse response = handle();
 
         assertError(response, "MISSING_PERMISSION");
+    }
+
+    @Test
+    void returnsCsrfValidationErrorForCsrfFailure() throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRequestURI("/auth/session/login");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        handler.handle(
+                request,
+                response,
+                new MissingCsrfTokenException(null));
+
+        JsonNode body = objectMapper.readTree(response.getContentAsByteArray());
+        assertThat(response.getStatus()).isEqualTo(403);
+        assertThat(body.get("errorCode").asText())
+                .isEqualTo("CSRF_VALIDATION_FAILED");
     }
 
     private MockHttpServletResponse handle() throws Exception {

@@ -4,6 +4,7 @@ import com.aliozcan.airportops.iam_service.auth.dto.AuthMeResponse;
 import com.aliozcan.airportops.iam_service.domain.model.UserEntity;
 import com.aliozcan.airportops.iam_service.domain.model.enums.UserStatus;
 import com.aliozcan.airportops.iam_service.repository.PlatformAuthorizationRepository;
+import com.aliozcan.airportops.iam_service.repository.TenantAuthorizationRepository;
 import com.aliozcan.airportops.iam_service.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -25,6 +26,8 @@ class AuthMeServiceTests {
         UserRepository userRepository = mock(UserRepository.class);
         PlatformAuthorizationRepository authorizationRepository =
                 mock(PlatformAuthorizationRepository.class);
+        TenantAuthorizationRepository tenantAuthorizationRepository =
+                mock(TenantAuthorizationRepository.class);
         KeycloakRealmRoleExtractor roleExtractor = new KeycloakRealmRoleExtractor();
         UserEntity user = mock(UserEntity.class);
         UUID userId = UUID.randomUUID();
@@ -39,10 +42,13 @@ class AuthMeServiceTests {
                 .thenReturn(Optional.of(user));
         when(authorizationRepository.findPlatformAuthorizationByUserId(userId))
                 .thenReturn(List.of());
+        when(tenantAuthorizationRepository.findTenantAuthorizationByUserId(userId))
+                .thenReturn(List.of());
 
         AuthMeService service = new AuthMeService(
                 userRepository,
                 authorizationRepository,
+                tenantAuthorizationRepository,
                 roleExtractor);
 
         AuthMeResponse response = service.getCurrentUser(jwt);
@@ -50,6 +56,9 @@ class AuthMeServiceTests {
         assertThat(response.iamRoles()).isEmpty();
         assertThat(response.permissions()).isEmpty();
         assertThat(response.keycloakRoles()).containsExactly("PLATFORM_ADMIN");
+        assertThat(response.availableWorkspaces()).isEmpty();
+        assertThat(response.defaultWorkspace()).isNull();
+        assertThat(response.tenantContext()).isNull();
     }
 
     @Test
