@@ -25,6 +25,11 @@ public class TestJwtDecoderConfig {
     public static final String K8_PROVISIONING_TOKEN = "k8-provisioning-token";
     public static final String K8_SYNC_FAILED_TOKEN = "k8-sync-failed-token";
     public static final String K8_INACTIVE_TOKEN = "k8-inactive-token";
+    public static final String TENANT_TOKEN = "tenant-token";
+    public static final String DUAL_WORKSPACE_TOKEN = "dual-workspace-token";
+    public static final String NO_WORKSPACE_TOKEN = "no-workspace-token";
+    public static final String INACTIVE_ORGANIZATION_TOKEN =
+            "inactive-organization-token";
     public static final String ISSUER = "http://127.0.0.1:8085/realms/airport-ops";
     public static final String EMAIL = "platform.admin@demo.com";
     public static final String PERMISSIONLESS_EMAIL = "k4.permissionless@integration.test";
@@ -45,6 +50,11 @@ public class TestJwtDecoderConfig {
                 case K8_SYNC_FAILED_TOKEN ->
                         jwt(token, "failed@k8.auth.test", true);
                 case K8_INACTIVE_TOKEN -> jwt(token, "inactive@k8.auth.test", true);
+                case TENANT_TOKEN -> jwt(token, "tenant@w2a.test", true);
+                case DUAL_WORKSPACE_TOKEN -> jwt(token, "dual@w2a.test", true);
+                case NO_WORKSPACE_TOKEN -> jwt(token, "none@w2a.test", true);
+                case INACTIVE_ORGANIZATION_TOKEN ->
+                        jwt(token, "inactive-org@w2a.test", true);
                 default -> throw new BadJwtException("Invalid test token");
             };
         };
