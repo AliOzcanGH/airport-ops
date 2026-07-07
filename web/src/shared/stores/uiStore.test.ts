@@ -2,6 +2,17 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { useUiStore } from '@/shared/stores/uiStore'
 
 describe('useUiStore', () => {
+  it('contains only client-side navigation state', () => {
+    expect(Object.keys(useUiStore.getState()).sort()).toEqual([
+      'closeMobileNav',
+      'isMobileNavOpen',
+      'isSidebarCollapsed',
+      'reset',
+      'toggleMobileNav',
+      'toggleSidebar',
+    ])
+  })
+
   beforeEach(() => {
     useUiStore.getState().reset()
   })

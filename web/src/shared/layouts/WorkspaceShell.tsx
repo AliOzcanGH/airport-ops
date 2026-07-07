@@ -1,12 +1,13 @@
 import {
-  LogIn,
+  LogOut,
   Menu,
   PanelLeftClose,
   PanelLeftOpen,
   X,
   type LucideIcon,
 } from 'lucide-react'
-import { NavLink, Outlet, useLocation } from 'react-router'
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router'
+import { useLogout } from '@/features/auth/hooks/useAuthSession'
 import { IconButton } from '@/shared/components/IconButton'
 import { useUiStore } from '@/shared/stores/uiStore'
 import { cn } from '@/shared/utils/cn'
@@ -99,6 +100,8 @@ function Brand({ config, collapsed = false }: BrandProps) {
 
 export function WorkspaceShell({ config }: { config: WorkspaceShellConfig }) {
   const location = useLocation()
+  const navigate = useNavigate()
+  const logout = useLogout()
   const isSidebarCollapsed = useUiStore(
     (state) => state.isSidebarCollapsed,
   )
@@ -107,6 +110,11 @@ export function WorkspaceShell({ config }: { config: WorkspaceShellConfig }) {
   const toggleMobileNav = useUiStore((state) => state.toggleMobileNav)
   const closeMobileNav = useUiStore((state) => state.closeMobileNav)
   const currentTitle = config.pageTitles[location.pathname] ?? config.name
+  const signOut = () => {
+    logout.mutate(undefined, {
+      onSuccess: () => navigate('/login', { replace: true }),
+    })
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-950">
@@ -131,21 +139,23 @@ export function WorkspaceShell({ config }: { config: WorkspaceShellConfig }) {
           </div>
 
           <div className="border-t border-slate-200 p-3">
-            <NavLink
-              to="/login"
-              title={isSidebarCollapsed ? 'Sign in' : undefined}
+            <button
+              type="button"
+              onClick={signOut}
+              disabled={logout.isPending}
+              title={isSidebarCollapsed ? 'Sign out' : undefined}
               className={cn(
-                'flex h-10 items-center gap-3 rounded-md px-3 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-950',
+                'flex h-10 w-full items-center gap-3 rounded-md px-3 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-950 disabled:opacity-60',
                 isSidebarCollapsed && 'justify-center px-0',
               )}
             >
-              <LogIn aria-hidden="true" size={19} />
+              <LogOut aria-hidden="true" size={19} />
               {isSidebarCollapsed ? (
-                <span className="sr-only">Sign in</span>
+                <span className="sr-only">Sign out</span>
               ) : (
-                <span>Sign in</span>
+                <span>{logout.isPending ? 'Signing out...' : 'Sign out'}</span>
               )}
-            </NavLink>
+            </button>
             <IconButton
               label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
               onClick={toggleSidebar}
@@ -210,14 +220,18 @@ export function WorkspaceShell({ config }: { config: WorkspaceShellConfig }) {
               <Navigation config={config} onNavigate={closeMobileNav} />
             </div>
             <div className="border-t border-slate-200 p-3">
-              <NavLink
-                to="/login"
-                onClick={closeMobileNav}
-                className="flex h-10 items-center gap-3 rounded-md px-3 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-950"
+              <button
+                type="button"
+                disabled={logout.isPending}
+                onClick={() => {
+                  closeMobileNav()
+                  signOut()
+                }}
+                className="flex h-10 w-full items-center gap-3 rounded-md px-3 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-950 disabled:opacity-60"
               >
-                <LogIn aria-hidden="true" size={19} />
-                Sign in
-              </NavLink>
+                <LogOut aria-hidden="true" size={19} />
+                {logout.isPending ? 'Signing out...' : 'Sign out'}
+              </button>
             </div>
           </aside>
         </div>
