@@ -8,6 +8,7 @@ import {
   Server,
 } from 'lucide-react'
 import { Link } from 'react-router'
+import { useCurrentUser } from '@/features/auth/hooks/useAuthSession'
 import { ApiError } from '@/shared/api/ApiError'
 import { apiClient } from '@/shared/api/apiClient'
 import { queryKeys } from '@/shared/api/queryKeys'
@@ -29,6 +30,7 @@ function healthLabel(
 }
 
 export function PlatformDashboardPage() {
+  const currentUser = useCurrentUser()
   const healthQuery = useQuery({
     queryKey: queryKeys.iam.health,
     queryFn: ({ signal }) =>
@@ -69,6 +71,47 @@ export function PlatformDashboardPage() {
           </button>
         }
       />
+
+      {currentUser.data ? (
+        <section
+          aria-labelledby="platform-access-heading"
+          className="grid gap-5 border-y border-slate-200 py-5 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]"
+        >
+          <div>
+            <h2
+              id="platform-access-heading"
+              className="text-sm font-semibold text-slate-950"
+            >
+              Current platform access
+            </h2>
+            <p className="mt-1 text-sm text-slate-600">
+              {currentUser.data.email}
+            </p>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <p className="text-xs font-semibold uppercase text-slate-500">
+                IAM roles
+              </p>
+              <p className="mt-2 text-sm text-slate-800">
+                {currentUser.data.iamRoles.join(', ') || 'No platform roles'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase text-slate-500">
+                Permissions
+              </p>
+              <ul className="mt-2 space-y-1 text-sm text-slate-700">
+                {currentUser.data.permissions.map((permission) => (
+                  <li key={permission} className="font-mono text-xs">
+                    {permission}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       <section aria-labelledby="platform-health-heading">
         <div className="mb-3 flex items-center justify-between">
