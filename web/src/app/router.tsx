@@ -1,8 +1,10 @@
+import { createBrowserRouter, type RouteObject } from 'react-router'
 import {
-  createBrowserRouter,
-  Navigate,
-  type RouteObject,
-} from 'react-router'
+  HomeRedirect,
+  RequireAuthentication,
+  RequireWorkspace,
+} from '@/features/auth/components/AuthGuards'
+import { AccessUnavailablePage } from '@/features/auth/pages/AccessUnavailablePage'
 import { LoginPage } from '@/features/auth/pages/LoginPage'
 import { PlatformDashboardPage } from '@/features/dashboard/pages/PlatformDashboardPage'
 import { TenantDashboardPage } from '@/features/dashboard/pages/TenantDashboardPage'
@@ -14,28 +16,49 @@ import { PublicLayout } from '@/shared/layouts/PublicLayout'
 import { TenantShell } from '@/shared/layouts/TenantShell'
 
 export const routeDefinitions: RouteObject[] = [
-  { path: '/', element: <Navigate to="/platform/dashboard" replace /> },
+  { path: '/', element: <HomeRedirect /> },
+  { path: '/dashboard', element: <HomeRedirect /> },
   {
-    path: '/dashboard',
-    element: <Navigate to="/platform/dashboard" replace />,
-  },
-  {
-    element: <PlatformShell />,
+    element: <RequireWorkspace workspace="PLATFORM" />,
     children: [
       {
-        path: '/platform/dashboard',
-        element: <PlatformDashboardPage />,
-      },
-      {
-        path: '/platform/invitations/new',
-        element: <PlatformInvitationsPage />,
+        element: <PlatformShell />,
+        children: [
+          {
+            path: '/platform/dashboard',
+            element: <PlatformDashboardPage />,
+          },
+          {
+            path: '/platform/invitations/new',
+            element: <PlatformInvitationsPage />,
+          },
+        ],
       },
     ],
   },
   {
-    element: <TenantShell />,
+    element: <RequireWorkspace workspace="TENANT" />,
     children: [
-      { path: '/app/dashboard', element: <TenantDashboardPage /> },
+      {
+        element: <TenantShell />,
+        children: [
+          { path: '/app/dashboard', element: <TenantDashboardPage /> },
+        ],
+      },
+    ],
+  },
+  {
+    element: <RequireAuthentication />,
+    children: [
+      {
+        element: <PublicLayout />,
+        children: [
+          {
+            path: '/access-unavailable',
+            element: <AccessUnavailablePage />,
+          },
+        ],
+      },
     ],
   },
   {

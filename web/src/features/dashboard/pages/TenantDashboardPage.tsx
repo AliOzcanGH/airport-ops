@@ -1,14 +1,59 @@
 import { Building2, MapPinned, PlaneTakeoff } from 'lucide-react'
-import { EmptyState } from '@/shared/components/EmptyState'
+import { useCurrentUser } from '@/features/auth/hooks/useAuthSession'
 import { PageHeader } from '@/shared/components/PageHeader'
 
 export function TenantDashboardPage() {
+  const currentUser = useCurrentUser()
+  const tenant = currentUser.data?.tenantContext
+
   return (
     <div className="space-y-8">
       <PageHeader
-        title="Airline tenant dashboard"
+        title={tenant?.organizationName ?? 'Airline tenant dashboard'}
         description="Organization workspace for airline users managing their own tenant operations."
       />
+
+      {tenant ? (
+        <section
+          aria-labelledby="tenant-access-heading"
+          className="grid gap-5 border-y border-slate-200 py-5 md:grid-cols-3"
+        >
+          <div>
+            <h2
+              id="tenant-access-heading"
+              className="text-sm font-semibold text-slate-950"
+            >
+              Organization access
+            </h2>
+            <p className="mt-1 text-sm text-slate-600">
+              {currentUser.data?.email}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs font-semibold uppercase text-slate-500">
+              Status and roles
+            </p>
+            <p className="mt-2 text-sm font-medium text-slate-800">
+              {tenant.organizationStatus.replaceAll('_', ' ')}
+            </p>
+            <p className="mt-1 text-sm text-slate-600">
+              {tenant.roles.join(', ')}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs font-semibold uppercase text-slate-500">
+              Permissions
+            </p>
+            <ul className="mt-2 max-h-32 space-y-1 overflow-auto text-slate-700">
+              {tenant.permissions.map((permission) => (
+                <li key={permission} className="font-mono text-xs">
+                  {permission}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+      ) : null}
 
       <section aria-labelledby="tenant-workspace-heading">
         <h2
@@ -52,12 +97,6 @@ export function TenantDashboardPage() {
           ))}
         </div>
       </section>
-
-      <EmptyState
-        icon={Building2}
-        title="No tenant organization loaded"
-        description="Organization data will appear here after an airline user signs in."
-      />
     </div>
   )
 }
