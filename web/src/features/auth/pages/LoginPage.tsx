@@ -1,11 +1,12 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Eye, EyeOff, KeyRound } from 'lucide-react'
-import { Navigate, useNavigate } from 'react-router'
+import { Navigate, useLocation, useNavigate } from 'react-router'
 import { ApiError } from '@/shared/api/ApiError'
 import { loginRequestSchema } from '@/shared/api/schemas'
 import {
   useCurrentUser,
   useLogin,
+  useLogout,
 } from '@/features/auth/hooks/useAuthSession'
 import { defaultWorkspacePath } from '@/features/auth/routing/workspaceRouting'
 import {
@@ -18,12 +19,53 @@ type FieldErrors = Partial<Record<'email' | 'password', string>>
 
 export function LoginPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const currentUser = useCurrentUser()
   const login = useLogin()
+  const logout = useLogout()
+  const switchAccountRequested =
+    new URLSearchParams(location.search).get('switchAccount') === 'true'
+  const [forceLoginForm] = useState(switchAccountRequested)
+  const [switchAccountWarning, setSwitchAccountWarning] = useState<string | null>(null)
+  const switchAccountCleanupStarted = useRef(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
+
+  useEffect(() => {
+    if (
+      !switchAccountRequested ||
+      currentUser.isPending ||
+      switchAccountCleanupStarted.current
+    ) {
+      return
+    }
+
+    switchAccountCleanupStarted.current = true
+
+    if (currentUser.data) {
+      logout.mutate(undefined, {
+        onError: () => {
+          setSwitchAccountWarning(
+            'The previous session could not be cleared. Logging in will replace it.',
+          )
+        },
+        onSettled: () => {
+          navigate('/login', { replace: true })
+        },
+      })
+      return
+    }
+
+    navigate('/login', { replace: true })
+  }, [
+    currentUser.data,
+    currentUser.isPending,
+    logout,
+    navigate,
+    switchAccountRequested,
+  ])
 
   if (currentUser.isPending) return <SessionLoadingView />
   if (currentUser.isError) {
@@ -32,7 +74,7 @@ export function LoginPage() {
     }
     return <SessionErrorView retry={() => void currentUser.refetch()} />
   }
-  if (currentUser.data) {
+  if (currentUser.data && !forceLoginForm) {
     return <Navigate to={defaultWorkspacePath(currentUser.data)} replace />
   }
 
@@ -55,7 +97,7 @@ export function LoginPage() {
       ? 'Invalid email or password.'
       : login.error instanceof ApiError &&
           login.error.errorCode === 'AUTH_PROVIDER_UNAVAILABLE'
-        ? 'Sign-in is temporarily unavailable. Try again shortly.'
+        ? 'Login is temporarily unavailable. Try again shortly.'
         : login.isError
           ? 'Airport Ops could not start your session.'
           : null
@@ -67,9 +109,9 @@ export function LoginPage() {
           <KeyRound aria-hidden="true" size={21} />
         </span>
         <div>
-          <h1 className="text-xl font-semibold text-slate-950">Sign in</h1>
+          <h1 className="text-xl font-semibold text-slate-950">Log in</h1>
           <p className="mt-1 text-sm text-slate-600">
-            Continue to your Airport Ops workspace.
+            Log in to continue to your Airport Ops workspace.
           </p>
         </div>
       </div>
@@ -140,12 +182,18 @@ export function LoginPage() {
           </p>
         ) : null}
 
+        {switchAccountWarning ? (
+          <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            {switchAccountWarning}
+          </p>
+        ) : null}
+
         <button
           type="submit"
-          disabled={login.isPending}
+          disabled={login.isPending || logout.isPending}
           className="inline-flex h-10 w-full items-center justify-center rounded-md bg-blue-700 px-4 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-wait disabled:opacity-60"
         >
-          {login.isPending ? 'Signing in...' : 'Sign in'}
+          {logout.isPending ? 'Preparing login...' : login.isPending ? 'Logging in...' : 'Log in'}
         </button>
       </form>
     </div>

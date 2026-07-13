@@ -68,7 +68,7 @@ describe('authenticated application routes', () => {
       mockBackend(null)
       renderRoute(path)
       expect(
-        await screen.findByRole('heading', { name: 'Sign in', level: 1 }),
+        await screen.findByRole('heading', { name: 'Log in', level: 1 }),
       ).toBeInTheDocument()
     },
   )
@@ -152,6 +152,7 @@ describe('authenticated application routes', () => {
     })
     expect(navigation).toHaveTextContent('Platform dashboard')
     expect(navigation).toHaveTextContent('Tenant invitations')
+    expect(navigation).toHaveTextContent('Tenant directory')
     expect(navigation).not.toHaveTextContent('Tenant dashboard')
   })
 
@@ -174,7 +175,7 @@ describe('authenticated application routes', () => {
     await user.click(await screen.findByRole('button', { name: 'Sign out' }))
 
     expect(
-      await screen.findByRole('heading', { name: 'Sign in', level: 1 }),
+      await screen.findByRole('heading', { name: 'Log in', level: 1 }),
     ).toBeInTheDocument()
     expect(fetchMock.mock.calls.some(([url]) =>
       String(url).endsWith('/auth/session/logout'),

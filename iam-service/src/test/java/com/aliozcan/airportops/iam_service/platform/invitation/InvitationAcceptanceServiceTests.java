@@ -38,7 +38,7 @@ class InvitationAcceptanceServiceTests {
                 transactionService,
                 keycloakProvisioningClient,
                 stateService);
-        when(transactionService.provision("A".repeat(43), "Pegasus Admin"))
+        when(transactionService.provision("A".repeat(43), "Airline Admin"))
                 .thenReturn(provisioned());
     }
 
@@ -46,6 +46,7 @@ class InvitationAcceptanceServiceTests {
     void activatesUserAfterKeycloakSuccess() {
         when(keycloakProvisioningClient.createUser(
                 "admin@pegasus.demo",
+                "Airline Admin",
                 "StrongPassword123!"))
                 .thenReturn("keycloak-subject");
 
@@ -61,6 +62,7 @@ class InvitationAcceptanceServiceTests {
     void marksUserFailedAfterKeycloakFailure() {
         when(keycloakProvisioningClient.createUser(
                 "admin@pegasus.demo",
+                "Airline Admin",
                 "StrongPassword123!"))
                 .thenThrow(new KeycloakProvisioningException(
                         "duplicate identity",
@@ -84,6 +86,7 @@ class InvitationAcceptanceServiceTests {
                 new DataAccessResourceFailureException("database unavailable");
         when(keycloakProvisioningClient.createUser(
                 "admin@pegasus.demo",
+                "Airline Admin",
                 "StrongPassword123!"))
                 .thenReturn("keycloak-subject");
         org.mockito.Mockito.doThrow(failure)
@@ -98,7 +101,7 @@ class InvitationAcceptanceServiceTests {
     private AcceptInvitationRequest request() {
         return new AcceptInvitationRequest(
                 "A".repeat(43),
-                "Pegasus Admin",
+                "Airline Admin",
                 "StrongPassword123!");
     }
 
