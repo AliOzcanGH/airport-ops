@@ -196,22 +196,30 @@ export function PlatformDashboardPage() {
               </span>
             </span>
           </Link>
-          <div className="flex min-h-36 items-start gap-4 rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+          <Link
+            to="/platform/tenants"
+            className="group flex min-h-36 items-start gap-4 rounded-md border border-slate-200 bg-white p-5 shadow-sm transition-colors hover:border-blue-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+          >
             <span className="grid size-10 shrink-0 place-items-center rounded-md bg-slate-100 text-slate-600">
               <Building2 aria-hidden="true" size={20} />
             </span>
             <span className="min-w-0">
               <span className="block text-sm font-semibold text-slate-950">
-                Tenant onboarding
+                Tenant directory
               </span>
               <span className="mt-1 block text-sm leading-6 text-slate-600">
-                Track airline organization readiness after invitation acceptance.
+                Review airline organization readiness after invitation acceptance.
               </span>
-              <span className="mt-3 block text-xs font-medium text-slate-500">
-                No active onboarding
+              <span className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-blue-700">
+                Open directory
+                <ArrowRight
+                  aria-hidden="true"
+                  size={14}
+                  className="transition-transform group-hover:translate-x-0.5"
+                />
               </span>
             </span>
-          </div>
+          </Link>
         </div>
       </section>
     </div>

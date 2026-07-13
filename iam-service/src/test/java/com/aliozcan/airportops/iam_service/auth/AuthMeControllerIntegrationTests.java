@@ -39,6 +39,7 @@ class AuthMeControllerIntegrationTests {
                 .isEqualTo("keycloak-platform-admin-id");
         assertThat(response.getBody().issuer()).isEqualTo(TestJwtDecoderConfig.ISSUER);
         assertThat(response.getBody().email()).isEqualTo(TestJwtDecoderConfig.EMAIL);
+        assertThat(response.getBody().fullName()).isEqualTo("Platform Admin");
         assertThat(response.getBody().preferredUsername())
                 .isEqualTo(TestJwtDecoderConfig.EMAIL);
         assertThat(response.getBody().iamUserId()).isNotNull();
@@ -61,6 +62,7 @@ class AuthMeControllerIntegrationTests {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().email()).isEqualTo(TestJwtDecoderConfig.EMAIL);
+        assertThat(response.getBody().fullName()).isEqualTo("Platform Admin");
         assertThat(response.getBody().iamUserId()).isNotNull();
     }
 

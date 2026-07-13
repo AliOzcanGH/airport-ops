@@ -4,6 +4,7 @@ const baseUser: AuthMeResponse = {
   keycloakSubject: 'keycloak-user-id',
   issuer: 'http://127.0.0.1:8085/realms/airport-ops',
   email: 'user@airport-ops.test',
+  fullName: 'Airport Ops User',
   preferredUsername: 'user@airport-ops.test',
   iamUserId: '8d284ebc-8085-49f0-a41e-fc1a99dbdb49',
   iamUserStatus: 'ACTIVE',
@@ -20,6 +21,7 @@ export const noWorkspaceUser: AuthMeResponse = { ...baseUser }
 export const platformUser: AuthMeResponse = {
   ...baseUser,
   email: 'platform.admin@demo.com',
+  fullName: 'Platform Admin',
   preferredUsername: 'platform.admin@demo.com',
   keycloakRoles: ['PLATFORM_ADMIN'],
   iamRoles: ['PLATFORM_ADMIN'],
@@ -35,6 +37,7 @@ export const platformUser: AuthMeResponse = {
 export const tenantUser: AuthMeResponse = {
   ...baseUser,
   email: 'airline.admin@demo.com',
+  fullName: 'Airline Admin',
   preferredUsername: 'airline.admin@demo.com',
   availableWorkspaces: ['TENANT'],
   defaultWorkspace: 'TENANT',

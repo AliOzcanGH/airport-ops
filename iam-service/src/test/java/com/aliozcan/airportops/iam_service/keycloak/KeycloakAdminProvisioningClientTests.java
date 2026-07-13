@@ -49,7 +49,7 @@ class KeycloakAdminProvisioningClientTests {
     }
 
     @Test
-    void createsEnabledUnverifiedUserAndSetsPassword() {
+    void createsLoginReadyUserAndSetsPassword() {
         when(users.create(org.mockito.ArgumentMatchers.any()))
                 .thenReturn(response);
         when(response.getStatus()).thenReturn(201);
@@ -59,6 +59,7 @@ class KeycloakAdminProvisioningClientTests {
 
         String subject = client.createUser(
                 "admin@pegasus.demo",
+                "Airline Test",
                 "StrongPassword123!");
 
         assertThat(subject).isEqualTo("keycloak-subject");
@@ -70,7 +71,10 @@ class KeycloakAdminProvisioningClientTests {
         assertThat(userCaptor.getValue().getEmail())
                 .isEqualTo("admin@pegasus.demo");
         assertThat(userCaptor.getValue().isEnabled()).isTrue();
-        assertThat(userCaptor.getValue().isEmailVerified()).isFalse();
+        assertThat(userCaptor.getValue().isEmailVerified()).isTrue();
+        assertThat(userCaptor.getValue().getFirstName()).isEqualTo("Airline");
+        assertThat(userCaptor.getValue().getLastName()).isEqualTo("Test");
+        assertThat(userCaptor.getValue().getRequiredActions()).isEmpty();
 
         ArgumentCaptor<CredentialRepresentation> credentialCaptor =
                 ArgumentCaptor.forClass(CredentialRepresentation.class);
@@ -84,6 +88,48 @@ class KeycloakAdminProvisioningClientTests {
     }
 
     @Test
+    void usesDashLastNameForSingleTokenName() {
+        when(users.create(org.mockito.ArgumentMatchers.any()))
+                .thenReturn(response);
+        when(response.getStatus()).thenReturn(201);
+        when(response.getStatusInfo()).thenReturn(Response.Status.CREATED);
+        when(response.getLocation()).thenReturn(URI.create(
+                "http://127.0.0.1:8085/admin/realms/airport-ops/users/keycloak-subject"));
+
+        client.createUser(
+                "admin@airline.demo",
+                "Airline",
+                "StrongPassword123!");
+
+        ArgumentCaptor<UserRepresentation> userCaptor =
+                ArgumentCaptor.forClass(UserRepresentation.class);
+        verify(users).create(userCaptor.capture());
+        assertThat(userCaptor.getValue().getFirstName()).isEqualTo("Airline");
+        assertThat(userCaptor.getValue().getLastName()).isEqualTo("-");
+    }
+
+    @Test
+    void normalizesRepeatedWhitespaceInProfileName() {
+        when(users.create(org.mockito.ArgumentMatchers.any()))
+                .thenReturn(response);
+        when(response.getStatus()).thenReturn(201);
+        when(response.getStatusInfo()).thenReturn(Response.Status.CREATED);
+        when(response.getLocation()).thenReturn(URI.create(
+                "http://127.0.0.1:8085/admin/realms/airport-ops/users/keycloak-subject"));
+
+        client.createUser(
+                "admin@airline.demo",
+                "  Airline   Test  Admin  ",
+                "StrongPassword123!");
+
+        ArgumentCaptor<UserRepresentation> userCaptor =
+                ArgumentCaptor.forClass(UserRepresentation.class);
+        verify(users).create(userCaptor.capture());
+        assertThat(userCaptor.getValue().getFirstName()).isEqualTo("Airline");
+        assertThat(userCaptor.getValue().getLastName()).isEqualTo("Test Admin");
+    }
+
+    @Test
     void reportsDuplicateWithoutLookingUpOrLinkingExistingUser() {
         when(users.create(org.mockito.ArgumentMatchers.any()))
                 .thenReturn(response);
@@ -91,6 +137,7 @@ class KeycloakAdminProvisioningClientTests {
 
         assertThatThrownBy(() -> client.createUser(
                 "admin@pegasus.demo",
+                "Airline Admin",
                 "StrongPassword123!"))
                 .isInstanceOfSatisfying(
                         KeycloakProvisioningException.class,
