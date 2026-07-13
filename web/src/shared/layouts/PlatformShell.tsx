@@ -1,4 +1,4 @@
-import { LayoutDashboard, MailPlus, ShieldCheck } from 'lucide-react'
+import { Building2, LayoutDashboard, MailPlus, ShieldCheck } from 'lucide-react'
 import {
   WorkspaceShell,
   type WorkspaceShellConfig,
@@ -25,10 +25,16 @@ const platformShellConfig: WorkspaceShellConfig = {
       label: 'Tenant invitations',
       icon: MailPlus,
     },
+    {
+      to: '/platform/tenants',
+      label: 'Tenant directory',
+      icon: Building2,
+    },
   ],
   pageTitles: {
     '/platform/dashboard': 'Platform dashboard',
     '/platform/invitations/new': 'Tenant invitations',
+    '/platform/tenants': 'Tenant directory',
   },
 }
 

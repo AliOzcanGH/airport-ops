@@ -36,3 +36,8 @@ dependencies {
 tasks.withType<Test> {
 	useJUnitPlatform()
 }
+
+tasks.named<JavaCompile>("compileTestJava") {
+	// Work around local javac classpath directory resolution issues on Windows.
+	source(sourceSets.main.get().allJava)
+}
