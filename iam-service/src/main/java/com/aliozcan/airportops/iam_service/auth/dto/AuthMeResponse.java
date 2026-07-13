@@ -9,6 +9,7 @@ public record AuthMeResponse(
         String keycloakSubject,
         String issuer,
         String email,
+        String fullName,
         String preferredUsername,
         UUID iamUserId,
         UserStatus iamUserStatus,
