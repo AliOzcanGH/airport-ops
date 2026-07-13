@@ -77,6 +77,7 @@ public class AuthMeService {
                 jwt.getSubject(),
                 jwt.getIssuer() == null ? null : jwt.getIssuer().toString(),
                 email,
+                user.getFullName(),
                 jwt.getClaimAsString("preferred_username"),
                 user.getId(),
                 user.getStatus(),

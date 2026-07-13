@@ -10,6 +10,7 @@ import com.aliozcan.airportops.iam_service.platform.invitation.IamUserAlreadyExi
 import com.aliozcan.airportops.iam_service.platform.invitation.OrganizationAlreadyExistsException;
 import com.aliozcan.airportops.iam_service.platform.invitation.PendingInvitationExistsException;
 import com.aliozcan.airportops.iam_service.platform.invitation.ProvisioningInvariantException;
+import com.aliozcan.airportops.iam_service.platform.tenant.PlatformTenantNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -42,6 +43,8 @@ public class AuthExceptionHandler {
             "Authentication provider is temporarily unavailable";
     private static final String SESSION_EXPIRED_MESSAGE =
             "Session has expired";
+    private static final String TENANT_NOT_FOUND_MESSAGE =
+            "Tenant organization not found";
 
     @ExceptionHandler(InvalidLoginException.class)
     public ResponseEntity<ErrorResponse> handleInvalidLogin(
@@ -186,6 +189,17 @@ public class AuthExceptionHandler {
                 HttpStatus.INTERNAL_SERVER_ERROR,
                 "PROVISIONING_CONFIGURATION_ERROR",
                 PROVISIONING_CONFIGURATION_ERROR_MESSAGE,
+                request);
+    }
+
+    @ExceptionHandler(PlatformTenantNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handlePlatformTenantNotFound(
+            PlatformTenantNotFoundException exception,
+            HttpServletRequest request) {
+        return errorResponse(
+                HttpStatus.NOT_FOUND,
+                "TENANT_NOT_FOUND",
+                TENANT_NOT_FOUND_MESSAGE,
                 request);
     }
 

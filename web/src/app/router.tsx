@@ -11,6 +11,8 @@ import { TenantDashboardPage } from '@/features/dashboard/pages/TenantDashboardP
 import { InvitationAcceptPage } from '@/features/invitations/pages/InvitationAcceptPage'
 import { PlatformInvitationsPage } from '@/features/invitations/pages/PlatformInvitationsPage'
 import { NotFoundPage } from '@/features/not-found/NotFoundPage'
+import { PlatformTenantDetailPage } from '@/features/tenants/pages/PlatformTenantDetailPage'
+import { PlatformTenantDirectoryPage } from '@/features/tenants/pages/PlatformTenantDirectoryPage'
 import { PlatformShell } from '@/shared/layouts/PlatformShell'
 import { PublicLayout } from '@/shared/layouts/PublicLayout'
 import { TenantShell } from '@/shared/layouts/TenantShell'
@@ -31,6 +33,14 @@ export const routeDefinitions: RouteObject[] = [
           {
             path: '/platform/invitations/new',
             element: <PlatformInvitationsPage />,
+          },
+          {
+            path: '/platform/tenants',
+            element: <PlatformTenantDirectoryPage />,
+          },
+          {
+            path: '/platform/tenants/:organizationId',
+            element: <PlatformTenantDetailPage />,
           },
         ],
       },

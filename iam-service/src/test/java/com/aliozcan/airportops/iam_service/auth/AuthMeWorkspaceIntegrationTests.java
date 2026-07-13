@@ -75,6 +75,7 @@ class AuthMeWorkspaceIntegrationTests {
         AuthMeResponse body = me(TestJwtDecoderConfig.TENANT_TOKEN).getBody();
 
         assertThat(body).isNotNull();
+        assertThat(body.fullName()).isEqualTo("Tenant User");
         assertThat(body.availableWorkspaces()).containsExactly(WorkspaceType.TENANT);
         assertThat(body.defaultWorkspace()).isEqualTo(WorkspaceType.TENANT);
         assertThat(body.iamRoles()).isEmpty();
@@ -91,6 +92,7 @@ class AuthMeWorkspaceIntegrationTests {
         AuthMeResponse body = me(TestJwtDecoderConfig.DUAL_WORKSPACE_TOKEN).getBody();
 
         assertThat(body).isNotNull();
+        assertThat(body.fullName()).isEqualTo("Dual User");
         assertThat(body.availableWorkspaces())
                 .containsExactly(WorkspaceType.PLATFORM, WorkspaceType.TENANT);
         assertThat(body.defaultWorkspace()).isEqualTo(WorkspaceType.PLATFORM);
@@ -102,6 +104,7 @@ class AuthMeWorkspaceIntegrationTests {
         AuthMeResponse body = me(TestJwtDecoderConfig.NO_WORKSPACE_TOKEN).getBody();
 
         assertThat(body).isNotNull();
+        assertThat(body.fullName()).isEqualTo("No Workspace User");
         assertThat(body.availableWorkspaces()).isEmpty();
         assertThat(body.defaultWorkspace()).isNull();
         assertThat(body.tenantContext()).isNull();

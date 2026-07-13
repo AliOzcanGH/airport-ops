@@ -6,10 +6,15 @@ import com.aliozcan.airportops.iam_service.keycloak.KeycloakProvisioningExceptio
 import com.aliozcan.airportops.iam_service.platform.invitation.dto.AcceptInvitationRequest;
 import com.aliozcan.airportops.iam_service.platform.invitation.dto.InvitationAcceptanceResponse;
 import com.aliozcan.airportops.iam_service.platform.invitation.dto.ProvisioningStatus;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 @Service
 public class InvitationAcceptanceService {
+
+    private static final Logger LOGGER =
+            LoggerFactory.getLogger(InvitationAcceptanceService.class);
 
     private static final String READY_MESSAGE =
             "Invitation accepted. You can now sign in.";
@@ -39,6 +44,7 @@ public class InvitationAcceptanceService {
         try {
             String keycloakUserId = keycloakProvisioningClient.createUser(
                     provisioned.email(),
+                    request.fullName(),
                     request.password());
             userProvisioningStateService.activate(
                     provisioned.userId(),
@@ -49,6 +55,11 @@ public class InvitationAcceptanceService {
                     ProvisioningStatus.READY,
                     READY_MESSAGE);
         } catch (KeycloakProvisioningException exception) {
+            LOGGER.warn(
+                    "Keycloak provisioning failed for IAM user {}: {} - {}",
+                    provisioned.userId(),
+                    exception.getClass().getSimpleName(),
+                    exception.getMessage());
             userProvisioningStateService.markKeycloakSyncFailed(
                     provisioned.userId());
             return response(
