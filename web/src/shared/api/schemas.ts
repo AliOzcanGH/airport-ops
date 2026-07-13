@@ -31,6 +31,21 @@ export const organizationStatusSchema = z.enum([
   'ACTIVE',
   'INACTIVE',
 ])
+export const organizationMemberStatusSchema = z.enum([
+  'ACTIVE',
+  'INACTIVE',
+  'INVITED',
+])
+export const invitationStatusSchema = z.enum([
+  'PENDING',
+  'ACCEPTED',
+  'CANCELLED',
+  'EXPIRED',
+])
+export const provisioningStatusSchema = z.enum([
+  'READY',
+  'LOGIN_SETUP_PENDING',
+])
 
 export const tenantContextSchema = z.object({
   organizationId: z.uuid(),
@@ -44,6 +59,7 @@ export const authMeResponseSchema = z.object({
   keycloakSubject: z.string().nullable(),
   issuer: z.string().nullable(),
   email: z.email(),
+  fullName: z.string().min(1),
   preferredUsername: z.string().nullable(),
   iamUserId: z.uuid(),
   iamUserStatus: userStatusSchema,
@@ -60,6 +76,111 @@ export const loginRequestSchema = z.object({
   password: z.string().min(1, 'Password is required'),
 })
 
+export const invitationTokenSchema = z
+  .string()
+  .regex(/^[A-Za-z0-9_-]{43}$/, 'Invitation token is invalid')
+
+export const createPlatformInvitationRequestSchema = z.object({
+  email: z
+    .string()
+    .trim()
+    .min(1, 'Email is required')
+    .max(320, 'Email is too long')
+    .pipe(z.email('Enter a valid email address')),
+  organizationName: z
+    .string()
+    .trim()
+    .min(1, 'Organization name is required')
+    .max(200, 'Organization name is too long'),
+})
+
+export const platformInvitationResponseSchema = z.object({
+  id: z.uuid(),
+  email: z.email(),
+  organizationName: z.string().min(1),
+  status: invitationStatusSchema,
+  expiresAt: z.string().min(1),
+  invitationToken: invitationTokenSchema,
+})
+
+export const validateInvitationRequestSchema = z.object({
+  token: invitationTokenSchema,
+})
+
+export const invitationValidationResponseSchema = z.object({
+  organizationName: z.string().min(1),
+  invitedEmail: z.string().min(1),
+  expiresAt: z.string().min(1),
+})
+
+export const acceptInvitationFormSchema = z
+  .object({
+    fullName: z
+      .string()
+      .trim()
+      .min(1, 'Full name is required')
+      .max(150, 'Full name is too long'),
+    password: z
+      .string()
+      .min(12, 'Password must be at least 12 characters')
+      .max(128, 'Password is too long'),
+    confirmPassword: z.string().min(1, 'Confirm your password'),
+  })
+  .refine((value) => value.password === value.confirmPassword, {
+    path: ['confirmPassword'],
+    message: 'Passwords do not match',
+  })
+
+export const acceptInvitationRequestSchema = z.object({
+  token: invitationTokenSchema,
+  fullName: z
+    .string()
+    .trim()
+    .min(1, 'Full name is required')
+    .max(150, 'Full name is too long'),
+  password: z
+    .string()
+    .min(12, 'Password must be at least 12 characters')
+    .max(128, 'Password is too long'),
+})
+
+export const invitationAcceptanceResponseSchema = z.object({
+  email: z.email(),
+  organizationName: z.string().min(1),
+  organizationStatus: organizationStatusSchema,
+  userStatus: userStatusSchema,
+  provisioningStatus: provisioningStatusSchema,
+  message: z.string().min(1),
+})
+
+export const platformTenantSummarySchema = z.object({
+  organizationId: z.uuid(),
+  organizationName: z.string().min(1),
+  organizationStatus: organizationStatusSchema,
+  createdAt: z.string().min(1),
+  memberCount: z.number().int().nonnegative(),
+  primaryAdminEmail: z.email().nullable(),
+})
+
+export const platformTenantDirectoryResponseSchema = z.object({
+  tenants: z.array(platformTenantSummarySchema),
+})
+
+export const platformTenantMemberSchema = z.object({
+  memberId: z.uuid(),
+  userId: z.uuid(),
+  email: z.email(),
+  fullName: z.string().min(1),
+  memberStatus: organizationMemberStatusSchema,
+  roles: z.array(z.string()),
+  joinedAt: z.string().nullable(),
+})
+
+export const platformTenantDetailResponseSchema =
+  platformTenantSummarySchema.extend({
+    members: z.array(platformTenantMemberSchema),
+  })
+
 export type HealthResponse = z.infer<typeof healthResponseSchema>
 export type BackendErrorResponse = z.infer<typeof backendErrorResponseSchema>
 export type CsrfMetadata = z.infer<typeof csrfMetadataSchema>
@@ -67,3 +188,35 @@ export type WorkspaceType = z.infer<typeof workspaceTypeSchema>
 export type TenantContext = z.infer<typeof tenantContextSchema>
 export type AuthMeResponse = z.infer<typeof authMeResponseSchema>
 export type LoginRequest = z.infer<typeof loginRequestSchema>
+export type InvitationStatus = z.infer<typeof invitationStatusSchema>
+export type OrganizationMemberStatus = z.infer<
+  typeof organizationMemberStatusSchema
+>
+export type ProvisioningStatus = z.infer<typeof provisioningStatusSchema>
+export type CreatePlatformInvitationRequest = z.infer<
+  typeof createPlatformInvitationRequestSchema
+>
+export type PlatformInvitationResponse = z.infer<
+  typeof platformInvitationResponseSchema
+>
+export type ValidateInvitationRequest = z.infer<
+  typeof validateInvitationRequestSchema
+>
+export type InvitationValidationResponse = z.infer<
+  typeof invitationValidationResponseSchema
+>
+export type AcceptInvitationForm = z.infer<typeof acceptInvitationFormSchema>
+export type AcceptInvitationRequest = z.infer<
+  typeof acceptInvitationRequestSchema
+>
+export type InvitationAcceptanceResponse = z.infer<
+  typeof invitationAcceptanceResponseSchema
+>
+export type PlatformTenantSummary = z.infer<typeof platformTenantSummarySchema>
+export type PlatformTenantDirectoryResponse = z.infer<
+  typeof platformTenantDirectoryResponseSchema
+>
+export type PlatformTenantMember = z.infer<typeof platformTenantMemberSchema>
+export type PlatformTenantDetailResponse = z.infer<
+  typeof platformTenantDetailResponseSchema
+>

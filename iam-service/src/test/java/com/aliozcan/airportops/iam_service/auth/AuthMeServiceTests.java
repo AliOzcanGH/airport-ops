@@ -37,6 +37,7 @@ class AuthMeServiceTests {
         ));
 
         when(user.getId()).thenReturn(userId);
+        when(user.getFullName()).thenReturn("Platform Admin");
         when(user.getStatus()).thenReturn(UserStatus.ACTIVE);
         when(userRepository.findActiveByEmail("platform.admin@demo.com"))
                 .thenReturn(Optional.of(user));
@@ -54,6 +55,7 @@ class AuthMeServiceTests {
         AuthMeResponse response = service.getCurrentUser(jwt);
 
         assertThat(response.iamRoles()).isEmpty();
+        assertThat(response.fullName()).isEqualTo("Platform Admin");
         assertThat(response.permissions()).isEmpty();
         assertThat(response.keycloakRoles()).containsExactly("PLATFORM_ADMIN");
         assertThat(response.availableWorkspaces()).isEmpty();

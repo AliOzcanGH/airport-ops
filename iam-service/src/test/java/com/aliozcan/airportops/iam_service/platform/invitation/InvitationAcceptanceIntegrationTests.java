@@ -50,6 +50,7 @@ class InvitationAcceptanceIntegrationTests {
     private static final String TOKEN = "K".repeat(43);
     private static final String EMAIL = "admin@k8.integration.test";
     private static final String ORGANIZATION_NAME = "K8 Pegasus Airlines";
+    private static final String FULL_NAME = "Airline Admin";
     private static final String PASSWORD = "StrongPassword123!";
 
     @Autowired
@@ -71,7 +72,10 @@ class InvitationAcceptanceIntegrationTests {
     void setUp() {
         cleanFixtures();
         reset(keycloakProvisioningClient);
-        when(keycloakProvisioningClient.createUser(anyString(), anyString()))
+        when(keycloakProvisioningClient.createUser(
+                anyString(),
+                anyString(),
+                anyString()))
                 .thenReturn("keycloak-k8-subject");
     }
 
@@ -86,7 +90,7 @@ class InvitationAcceptanceIntegrationTests {
         AtomicBoolean keycloakCallHadTransaction = new AtomicBoolean(true);
         AtomicReference<String> committedInvitationStatus = new AtomicReference<>();
         AtomicReference<String> committedUserStatus = new AtomicReference<>();
-        when(keycloakProvisioningClient.createUser(EMAIL, PASSWORD))
+        when(keycloakProvisioningClient.createUser(EMAIL, FULL_NAME, PASSWORD))
                 .thenAnswer(invocation -> {
                     keycloakCallHadTransaction.set(
                             TransactionSynchronizationManager
@@ -134,7 +138,7 @@ class InvitationAcceptanceIntegrationTests {
                         WHERE lower(email) = lower(?)
                         """,
                 EMAIL);
-        assertThat(user.get("full_name")).isEqualTo("Pegasus Admin");
+        assertThat(user.get("full_name")).isEqualTo(FULL_NAME);
         assertThat(user.get("status")).isEqualTo("ACTIVE");
         assertThat(user.get("auth_provider")).isEqualTo("KEYCLOAK");
         assertThat(user.get("password_hash")).isNull();
@@ -142,13 +146,13 @@ class InvitationAcceptanceIntegrationTests {
                 .isEqualTo("keycloak-k8-subject");
 
         assertProvisionedBusinessState();
-        verify(keycloakProvisioningClient).createUser(EMAIL, PASSWORD);
+        verify(keycloakProvisioningClient).createUser(EMAIL, FULL_NAME, PASSWORD);
     }
 
     @Test
     void returnsAcceptedWhenKeycloakSyncFails() {
         insertInvitation(TOKEN, "PENDING", Instant.now().plusSeconds(86_400));
-        when(keycloakProvisioningClient.createUser(EMAIL, PASSWORD))
+        when(keycloakProvisioningClient.createUser(EMAIL, FULL_NAME, PASSWORD))
                 .thenThrow(new KeycloakProvisioningException(
                         "Keycloak unavailable",
                         false));
@@ -169,7 +173,7 @@ class InvitationAcceptanceIntegrationTests {
     @Test
     void doesNotAutoLinkDuplicateKeycloakIdentity() {
         insertInvitation(TOKEN, "PENDING", Instant.now().plusSeconds(86_400));
-        when(keycloakProvisioningClient.createUser(EMAIL, PASSWORD))
+        when(keycloakProvisioningClient.createUser(EMAIL, FULL_NAME, PASSWORD))
                 .thenThrow(new KeycloakProvisioningException(
                         "duplicate identity",
                         true));
@@ -222,7 +226,7 @@ class InvitationAcceptanceIntegrationTests {
         ResponseEntity<ErrorResponse> second = accept(ErrorResponse.class);
 
         assertError(second, HttpStatus.CONFLICT, "INVITATION_ALREADY_USED");
-        verify(keycloakProvisioningClient).createUser(EMAIL, PASSWORD);
+        verify(keycloakProvisioningClient).createUser(EMAIL, FULL_NAME, PASSWORD);
     }
 
     @Test
@@ -256,7 +260,7 @@ class InvitationAcceptanceIntegrationTests {
             assertThat(countUsers()).isEqualTo(1);
             assertThat(countOrganizations()).isEqualTo(1);
             verify(keycloakProvisioningClient, times(1))
-                    .createUser(EMAIL, PASSWORD);
+                    .createUser(EMAIL, FULL_NAME, PASSWORD);
         } finally {
             executor.shutdownNow();
         }
@@ -279,7 +283,7 @@ class InvitationAcceptanceIntegrationTests {
         insertInvitation(TOKEN, "PENDING", Instant.now().plusSeconds(86_400));
         Map<String, String> invalidRequest = Map.of(
                 "token", TOKEN,
-                "fullName", "Pegasus Admin",
+                "fullName", FULL_NAME,
                 "password", "short");
 
         ResponseEntity<ErrorResponse> response = restTemplate.postForEntity(
@@ -344,7 +348,7 @@ class InvitationAcceptanceIntegrationTests {
     private Map<String, String> requestWithIgnoredIdentityFields() {
         return Map.of(
                 "token", TOKEN,
-                "fullName", "  Pegasus Admin  ",
+                "fullName", "  " + FULL_NAME + "  ",
                 "password", PASSWORD,
                 "email", "attacker@demo.com",
                 "organizationName", "Attacker Organization");
@@ -355,7 +359,7 @@ class InvitationAcceptanceIntegrationTests {
                 ENDPOINT,
                 Map.of(
                         "token", TOKEN,
-                        "fullName", "Pegasus Admin",
+                        "fullName", FULL_NAME,
                         "password", PASSWORD),
                 responseType);
     }
