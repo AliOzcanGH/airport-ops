@@ -5,6 +5,7 @@ const baseUser: AuthMeResponse = {
   issuer: 'http://127.0.0.1:8085/realms/airport-ops',
   email: 'user@airport-ops.test',
   fullName: 'Airport Ops User',
+  preferredLanguage: 'EN',
   preferredUsername: 'user@airport-ops.test',
   iamUserId: '8d284ebc-8085-49f0-a41e-fc1a99dbdb49',
   iamUserStatus: 'ACTIVE',
@@ -38,6 +39,7 @@ export const tenantUser: AuthMeResponse = {
   ...baseUser,
   email: 'airline.admin@demo.com',
   fullName: 'Airline Admin',
+  preferredLanguage: 'TR',
   preferredUsername: 'airline.admin@demo.com',
   availableWorkspaces: ['TENANT'],
   defaultWorkspace: 'TENANT',
@@ -48,6 +50,17 @@ export const tenantUser: AuthMeResponse = {
     roles: ['AIRLINE_ADMIN'],
     permissions: ['flight:create', 'member:invite', 'station:read'],
   },
+}
+
+export const activeTenantUser: AuthMeResponse = {
+  ...tenantUser,
+  preferredLanguage: 'EN',
+  tenantContext: tenantUser.tenantContext
+    ? {
+        ...tenantUser.tenantContext,
+        organizationStatus: 'ACTIVE',
+      }
+    : null,
 }
 
 export const dualWorkspaceUser: AuthMeResponse = {

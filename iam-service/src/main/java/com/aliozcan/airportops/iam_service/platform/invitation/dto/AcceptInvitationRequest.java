@@ -15,7 +15,11 @@ public record AcceptInvitationRequest(
 
         @NotBlank
         @Size(min = 12, max = 128)
-        String password
+        String password,
+
+        @NotBlank
+        @Pattern(regexp = "TR|EN")
+        String preferredLanguage
 ) {
 
     public AcceptInvitationRequest {

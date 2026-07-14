@@ -7,6 +7,7 @@ import com.aliozcan.airportops.iam_service.domain.model.OrganizationMemberEntity
 import com.aliozcan.airportops.iam_service.domain.model.RoleEntity;
 import com.aliozcan.airportops.iam_service.domain.model.UserEntity;
 import com.aliozcan.airportops.iam_service.domain.model.enums.InvitationStatus;
+import com.aliozcan.airportops.iam_service.domain.model.enums.PreferredLanguage;
 import com.aliozcan.airportops.iam_service.domain.model.enums.RoleScope;
 import com.aliozcan.airportops.iam_service.repository.InvitationRepository;
 import com.aliozcan.airportops.iam_service.repository.MemberRoleRepository;
@@ -57,7 +58,8 @@ public class InvitationAcceptanceTransactionService {
     @Transactional
     public IamProvisioningResult provision(
             String rawToken,
-            String fullName) {
+            String fullName,
+            String preferredLanguage) {
         String tokenHash = invitationTokenService.hash(rawToken);
         InvitationEntity invitation = invitationRepository
                 .findByTokenHashForUpdate(tokenHash)
@@ -84,6 +86,7 @@ public class InvitationAcceptanceTransactionService {
             UserEntity user = UserEntity.provisioningKeycloakUser(
                     invitation.getAdminEmail(),
                     fullName,
+                    PreferredLanguage.valueOf(preferredLanguage),
                     now);
             userRepository.saveAndFlush(user);
 
