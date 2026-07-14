@@ -22,6 +22,15 @@ public interface UserRepository extends JpaRepository<UserEntity, UUID> {
     @Query(value = """
             SELECT u.*
             FROM iam.users u
+            WHERE u.id = :userId
+              AND u.status = 'ACTIVE'
+              AND u.deleted_at IS NULL
+            """, nativeQuery = true)
+    Optional<UserEntity> findActiveById(@Param("userId") UUID userId);
+
+    @Query(value = """
+            SELECT u.*
+            FROM iam.users u
             WHERE lower(u.email) = lower(:email)
               AND u.status = 'ACTIVE'
               AND u.auth_provider = 'LOCAL'

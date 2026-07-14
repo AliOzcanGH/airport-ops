@@ -2,6 +2,7 @@ package com.aliozcan.airportops.iam_service.auth;
 
 import com.aliozcan.airportops.iam_service.auth.dto.AuthMeResponse;
 import com.aliozcan.airportops.iam_service.domain.model.UserEntity;
+import com.aliozcan.airportops.iam_service.domain.model.enums.PreferredLanguage;
 import com.aliozcan.airportops.iam_service.domain.model.enums.UserStatus;
 import com.aliozcan.airportops.iam_service.repository.PlatformAuthorizationRepository;
 import com.aliozcan.airportops.iam_service.repository.TenantAuthorizationRepository;
@@ -38,6 +39,7 @@ class AuthMeServiceTests {
 
         when(user.getId()).thenReturn(userId);
         when(user.getFullName()).thenReturn("Platform Admin");
+        when(user.getPreferredLanguage()).thenReturn(PreferredLanguage.EN);
         when(user.getStatus()).thenReturn(UserStatus.ACTIVE);
         when(userRepository.findActiveByEmail("platform.admin@demo.com"))
                 .thenReturn(Optional.of(user));
@@ -56,6 +58,7 @@ class AuthMeServiceTests {
 
         assertThat(response.iamRoles()).isEmpty();
         assertThat(response.fullName()).isEqualTo("Platform Admin");
+        assertThat(response.preferredLanguage()).isEqualTo(PreferredLanguage.EN);
         assertThat(response.permissions()).isEmpty();
         assertThat(response.keycloakRoles()).containsExactly("PLATFORM_ADMIN");
         assertThat(response.availableWorkspaces()).isEmpty();

@@ -1,6 +1,7 @@
 package com.aliozcan.airportops.iam_service.domain.model;
 
 import com.aliozcan.airportops.iam_service.domain.model.enums.AuthProvider;
+import com.aliozcan.airportops.iam_service.domain.model.enums.PreferredLanguage;
 import com.aliozcan.airportops.iam_service.domain.model.enums.UserStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -48,6 +49,10 @@ public class UserEntity {
     @Column(name = "keycloak_user_id", length = 64)
     private String keycloakUserId;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "preferred_language", nullable = false, length = 2)
+    private PreferredLanguage preferredLanguage;
+
     protected UserEntity() {
     }
 
@@ -61,7 +66,8 @@ public class UserEntity {
             Instant updatedAt,
             Instant deletedAt,
             AuthProvider authProvider,
-            String keycloakUserId) {
+            String keycloakUserId,
+            PreferredLanguage preferredLanguage) {
         this.id = id;
         this.email = email;
         this.passwordHash = passwordHash;
@@ -72,11 +78,13 @@ public class UserEntity {
         this.deletedAt = deletedAt;
         this.authProvider = authProvider;
         this.keycloakUserId = keycloakUserId;
+        this.preferredLanguage = preferredLanguage;
     }
 
     public static UserEntity provisioningKeycloakUser(
             String email,
             String fullName,
+            PreferredLanguage preferredLanguage,
             Instant now) {
         return new UserEntity(
                 UUID.randomUUID(),
@@ -88,7 +96,8 @@ public class UserEntity {
                 now,
                 null,
                 AuthProvider.KEYCLOAK,
-                null
+                null,
+                preferredLanguage
         );
     }
 
@@ -148,5 +157,9 @@ public class UserEntity {
 
     public String getKeycloakUserId() {
         return keycloakUserId;
+    }
+
+    public PreferredLanguage getPreferredLanguage() {
+        return preferredLanguage;
     }
 }
