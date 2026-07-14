@@ -64,6 +64,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/auth/session/logout").permitAll()
                         .requestMatchers(HttpMethod.GET, "/auth/keycloak/me").authenticated()
                         .requestMatchers(HttpMethod.GET, "/auth/me").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/app/setup/overview")
+                                .authenticated()
                         .requestMatchers(HttpMethod.GET, "/platform/authorization/probe")
                                 .authenticated()
                         .requestMatchers(HttpMethod.GET, "/platform/tenants")
