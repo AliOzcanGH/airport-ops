@@ -7,12 +7,15 @@ import { ApiError } from '@/shared/api/ApiError'
 import {
   acceptInvitationFormSchema,
   invitationTokenSchema,
+  type PreferredLanguage,
   type InvitationValidationResponse,
 } from '@/shared/api/schemas'
 import { PageHeader } from '@/shared/components/PageHeader'
+import { i18n } from '@/shared/i18n/i18n'
+import { preferredLanguageToI18nLanguage } from '@/shared/i18n/language'
 
 type FieldErrors = Partial<
-  Record<'fullName' | 'password' | 'confirmPassword', string>
+  Record<'fullName' | 'password' | 'confirmPassword' | 'preferredLanguage', string>
 >
 type ValidationState =
   | { status: 'idle' }
@@ -170,19 +173,35 @@ function AcceptInvitationForm({
   invitation: InvitationValidationResponse
   isPending: boolean
   error: unknown
-  onSubmit: (request: { token: string; fullName: string; password: string }) => void
+  onSubmit: (request: {
+    token: string
+    fullName: string
+    password: string
+    preferredLanguage: PreferredLanguage
+  }) => void
 }) {
   const [fullName, setFullName] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [preferredLanguage, setPreferredLanguage] =
+    useState<PreferredLanguage>('EN')
   const [showPassword, setShowPassword] = useState(false)
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
+
+  const changePreferredLanguage = (value: PreferredLanguage) => {
+    setPreferredLanguage(value)
+    const language = preferredLanguageToI18nLanguage(value)
+    if (i18n.language !== language) {
+      void i18n.changeLanguage(language)
+    }
+  }
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const parsed = acceptInvitationFormSchema.safeParse({
       fullName,
       password,
+      preferredLanguage,
       confirmPassword,
     })
     if (!parsed.success) {
@@ -190,6 +209,7 @@ function AcceptInvitationForm({
       setFieldErrors({
         fullName: errors.fullName?.[0],
         password: errors.password?.[0],
+        preferredLanguage: errors.preferredLanguage?.[0],
         confirmPassword: errors.confirmPassword?.[0],
       })
       return
@@ -199,6 +219,7 @@ function AcceptInvitationForm({
       token,
       fullName: parsed.data.fullName,
       password: parsed.data.password,
+      preferredLanguage: parsed.data.preferredLanguage,
     })
   }
 
@@ -256,6 +277,33 @@ function AcceptInvitationForm({
           {fieldErrors.fullName ? (
             <p id="full-name-error" className="mt-1.5 text-xs text-red-700">
               {fieldErrors.fullName}
+            </p>
+          ) : null}
+        </div>
+
+        <div>
+          <label htmlFor="preferred-language" className="text-sm font-medium text-slate-800">
+            Preferred language
+          </label>
+          <select
+            id="preferred-language"
+            name="preferredLanguage"
+            value={preferredLanguage}
+            onChange={(event) =>
+              changePreferredLanguage(event.target.value as PreferredLanguage)
+            }
+            aria-invalid={Boolean(fieldErrors.preferredLanguage)}
+            aria-describedby={
+              fieldErrors.preferredLanguage ? 'preferred-language-error' : undefined
+            }
+            className="mt-1.5 h-10 w-full rounded-md border border-slate-300 px-3 text-sm text-slate-950 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+          >
+            <option value="EN">English</option>
+            <option value="TR">Turkish</option>
+          </select>
+          {fieldErrors.preferredLanguage ? (
+            <p id="preferred-language-error" className="mt-1.5 text-xs text-red-700">
+              {fieldErrors.preferredLanguage}
             </p>
           ) : null}
         </div>

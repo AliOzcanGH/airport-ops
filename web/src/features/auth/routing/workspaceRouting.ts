@@ -8,6 +8,14 @@ export const workspacePaths: Record<WorkspaceType, string> = {
   TENANT: '/app/dashboard',
 }
 
+export function requiresTenantSetup(currentUser: AuthMeResponse): boolean {
+  return currentUser.tenantContext?.organizationStatus === 'ONBOARDING_INCOMPLETE'
+}
+
+export function isTenantActive(currentUser: AuthMeResponse): boolean {
+  return currentUser.tenantContext?.organizationStatus === 'ACTIVE'
+}
+
 export function hasWorkspace(
   currentUser: AuthMeResponse,
   workspace: WorkspaceType,
@@ -21,10 +29,18 @@ export function defaultWorkspacePath(currentUser: AuthMeResponse): string {
     currentUser.defaultWorkspace &&
     hasWorkspace(currentUser, currentUser.defaultWorkspace)
   ) {
+    if (
+      currentUser.defaultWorkspace === 'TENANT' &&
+      requiresTenantSetup(currentUser)
+    ) {
+      return '/app/setup'
+    }
     return workspacePaths[currentUser.defaultWorkspace]
   }
   if (hasWorkspace(currentUser, 'PLATFORM')) return workspacePaths.PLATFORM
-  if (hasWorkspace(currentUser, 'TENANT')) return workspacePaths.TENANT
+  if (hasWorkspace(currentUser, 'TENANT')) {
+    return requiresTenantSetup(currentUser) ? '/app/setup' : workspacePaths.TENANT
+  }
   return '/access-unavailable'
 }
 
@@ -36,7 +52,9 @@ export function workspaceFallbackPath(
     return workspacePaths[requestedWorkspace]
   }
   const alternative = requestedWorkspace === 'PLATFORM' ? 'TENANT' : 'PLATFORM'
-  return hasWorkspace(currentUser, alternative)
-    ? workspacePaths[alternative]
-    : '/access-unavailable'
+  if (!hasWorkspace(currentUser, alternative)) return '/access-unavailable'
+  if (alternative === 'TENANT' && requiresTenantSetup(currentUser)) {
+    return '/app/setup'
+  }
+  return workspacePaths[alternative]
 }

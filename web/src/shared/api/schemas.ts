@@ -46,6 +46,9 @@ export const provisioningStatusSchema = z.enum([
   'READY',
   'LOGIN_SETUP_PENDING',
 ])
+export const preferredLanguageSchema = z.enum(['TR', 'EN'])
+export const setupStepStatusSchema = z.enum(['NOT_STARTED', 'LOCKED'])
+export const setupStepKeySchema = z.enum(['PROFILE', 'STATION', 'REVIEW'])
 
 export const tenantContextSchema = z.object({
   organizationId: z.uuid(),
@@ -60,6 +63,7 @@ export const authMeResponseSchema = z.object({
   issuer: z.string().nullable(),
   email: z.email(),
   fullName: z.string().min(1),
+  preferredLanguage: preferredLanguageSchema,
   preferredUsername: z.string().nullable(),
   iamUserId: z.uuid(),
   iamUserStatus: userStatusSchema,
@@ -124,6 +128,7 @@ export const acceptInvitationFormSchema = z
       .string()
       .min(12, 'Password must be at least 12 characters')
       .max(128, 'Password is too long'),
+    preferredLanguage: preferredLanguageSchema,
     confirmPassword: z.string().min(1, 'Confirm your password'),
   })
   .refine((value) => value.password === value.confirmPassword, {
@@ -142,6 +147,7 @@ export const acceptInvitationRequestSchema = z.object({
     .string()
     .min(12, 'Password must be at least 12 characters')
     .max(128, 'Password is too long'),
+  preferredLanguage: preferredLanguageSchema,
 })
 
 export const invitationAcceptanceResponseSchema = z.object({
@@ -181,6 +187,19 @@ export const platformTenantDetailResponseSchema =
     members: z.array(platformTenantMemberSchema),
   })
 
+export const setupStepSchema = z.object({
+  key: setupStepKeySchema,
+  status: setupStepStatusSchema,
+})
+
+export const setupOverviewResponseSchema = z.object({
+  organizationId: z.uuid(),
+  organizationName: z.string().min(1),
+  organizationStatus: organizationStatusSchema,
+  preferredLanguage: preferredLanguageSchema,
+  steps: z.array(setupStepSchema),
+})
+
 export type HealthResponse = z.infer<typeof healthResponseSchema>
 export type BackendErrorResponse = z.infer<typeof backendErrorResponseSchema>
 export type CsrfMetadata = z.infer<typeof csrfMetadataSchema>
@@ -193,6 +212,7 @@ export type OrganizationMemberStatus = z.infer<
   typeof organizationMemberStatusSchema
 >
 export type ProvisioningStatus = z.infer<typeof provisioningStatusSchema>
+export type PreferredLanguage = z.infer<typeof preferredLanguageSchema>
 export type CreatePlatformInvitationRequest = z.infer<
   typeof createPlatformInvitationRequestSchema
 >
@@ -220,3 +240,5 @@ export type PlatformTenantMember = z.infer<typeof platformTenantMemberSchema>
 export type PlatformTenantDetailResponse = z.infer<
   typeof platformTenantDetailResponseSchema
 >
+export type SetupStep = z.infer<typeof setupStepSchema>
+export type SetupOverviewResponse = z.infer<typeof setupOverviewResponseSchema>

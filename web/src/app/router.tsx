@@ -2,6 +2,8 @@ import { createBrowserRouter, type RouteObject } from 'react-router'
 import {
   HomeRedirect,
   RequireAuthentication,
+  RequireTenantSetupComplete,
+  RequireTenantSetupPage,
   RequireWorkspace,
 } from '@/features/auth/components/AuthGuards'
 import { AccessUnavailablePage } from '@/features/auth/pages/AccessUnavailablePage'
@@ -13,8 +15,10 @@ import { PlatformInvitationsPage } from '@/features/invitations/pages/PlatformIn
 import { NotFoundPage } from '@/features/not-found/NotFoundPage'
 import { PlatformTenantDetailPage } from '@/features/tenants/pages/PlatformTenantDetailPage'
 import { PlatformTenantDirectoryPage } from '@/features/tenants/pages/PlatformTenantDirectoryPage'
+import { AppSetupPage } from '@/features/setup/pages/AppSetupPage'
 import { PlatformShell } from '@/shared/layouts/PlatformShell'
 import { PublicLayout } from '@/shared/layouts/PublicLayout'
+import { TenantSetupShell } from '@/shared/layouts/TenantSetupShell'
 import { TenantShell } from '@/shared/layouts/TenantShell'
 
 export const routeDefinitions: RouteObject[] = [
@@ -52,7 +56,23 @@ export const routeDefinitions: RouteObject[] = [
       {
         element: <TenantShell />,
         children: [
-          { path: '/app/dashboard', element: <TenantDashboardPage /> },
+          {
+            element: <RequireTenantSetupComplete />,
+            children: [
+              { path: '/app/dashboard', element: <TenantDashboardPage /> },
+            ],
+          },
+        ],
+      },
+      {
+        element: <RequireTenantSetupPage />,
+        children: [
+          {
+            element: <TenantSetupShell />,
+            children: [
+              { path: '/app/setup', element: <AppSetupPage /> },
+            ],
+          },
         ],
       },
     ],

@@ -38,7 +38,7 @@ class InvitationAcceptanceServiceTests {
                 transactionService,
                 keycloakProvisioningClient,
                 stateService);
-        when(transactionService.provision("A".repeat(43), "Airline Admin"))
+        when(transactionService.provision("A".repeat(43), "Airline Admin", "TR"))
                 .thenReturn(provisioned());
     }
 
@@ -102,7 +102,8 @@ class InvitationAcceptanceServiceTests {
         return new AcceptInvitationRequest(
                 "A".repeat(43),
                 "Airline Admin",
-                "StrongPassword123!");
+                "StrongPassword123!",
+                "TR");
     }
 
     private IamProvisioningResult provisioned() {

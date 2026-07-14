@@ -3,6 +3,8 @@ import { useCurrentUser } from '@/features/auth/hooks/useAuthSession'
 import {
   defaultWorkspacePath,
   hasWorkspace,
+  isTenantActive,
+  requiresTenantSetup,
   workspaceFallbackPath,
 } from '@/features/auth/routing/workspaceRouting'
 import {
@@ -47,6 +49,44 @@ export function RequireWorkspace({ workspace }: { workspace: WorkspaceType }) {
         replace
       />
     )
+  }
+  return <Outlet />
+}
+
+export function RequireTenantSetupComplete() {
+  const query = useCurrentUser()
+  const state = queryState(query)
+  if (state) return state
+  if (!query.data) return <Navigate to="/login" replace />
+  if (!hasWorkspace(query.data, 'TENANT')) {
+    return (
+      <Navigate
+        to={workspaceFallbackPath(query.data, 'TENANT')}
+        replace
+      />
+    )
+  }
+  if (requiresTenantSetup(query.data)) {
+    return <Navigate to="/app/setup" replace />
+  }
+  return <Outlet />
+}
+
+export function RequireTenantSetupPage() {
+  const query = useCurrentUser()
+  const state = queryState(query)
+  if (state) return state
+  if (!query.data) return <Navigate to="/login" replace />
+  if (!hasWorkspace(query.data, 'TENANT')) {
+    return (
+      <Navigate
+        to={workspaceFallbackPath(query.data, 'TENANT')}
+        replace
+      />
+    )
+  }
+  if (isTenantActive(query.data)) {
+    return <Navigate to="/app/dashboard" replace />
   }
   return <Outlet />
 }

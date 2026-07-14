@@ -10,4 +10,7 @@ export const queryKeys = {
     tenantDetail: (organizationId: string) =>
       ['platform', 'tenants', organizationId] as const,
   },
+  app: {
+    setupOverview: ['app', 'setup', 'overview'] as const,
+  },
 }
