@@ -1,6 +1,7 @@
 package com.aliozcan.airportops.iam_service.platform.invitation;
 
 import com.aliozcan.airportops.iam_service.auth.dto.ErrorResponse;
+import com.aliozcan.airportops.iam_service.domain.model.enums.PreferredLanguage;
 import com.aliozcan.airportops.iam_service.domain.model.enums.UserStatus;
 import com.aliozcan.airportops.iam_service.keycloak.KeycloakProvisioningClient;
 import com.aliozcan.airportops.iam_service.keycloak.KeycloakProvisioningException;
@@ -84,8 +85,10 @@ class InvitationAcceptanceIntegrationTests {
         cleanFixtures();
     }
 
-    @Test
-    void acceptsInvitationAfterIamCommitAndReturnsReady() throws Exception {
+    @ParameterizedTest
+    @EnumSource(PreferredLanguage.class)
+    void acceptsInvitationAfterIamCommitAndReturnsReady(
+            PreferredLanguage preferredLanguage) throws Exception {
         insertInvitation(TOKEN, "PENDING", Instant.now().plusSeconds(86_400));
         AtomicBoolean keycloakCallHadTransaction = new AtomicBoolean(true);
         AtomicReference<String> committedInvitationStatus = new AtomicReference<>();
@@ -108,7 +111,7 @@ class InvitationAcceptanceIntegrationTests {
 
         ResponseEntity<String> response = restTemplate.postForEntity(
                 ENDPOINT,
-                requestWithIgnoredIdentityFields(),
+                requestWithIgnoredIdentityFields(preferredLanguage),
                 String.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
@@ -133,7 +136,7 @@ class InvitationAcceptanceIntegrationTests {
         Map<String, Object> user = jdbcTemplate.queryForMap(
                 """
                         SELECT full_name, status, auth_provider, password_hash,
-                               keycloak_user_id
+                               keycloak_user_id, preferred_language
                         FROM iam.users
                         WHERE lower(email) = lower(?)
                         """,
@@ -144,6 +147,7 @@ class InvitationAcceptanceIntegrationTests {
         assertThat(user.get("password_hash")).isNull();
         assertThat(user.get("keycloak_user_id"))
                 .isEqualTo("keycloak-k8-subject");
+        assertThat(user.get("preferred_language")).isEqualTo(preferredLanguage.name());
 
         assertProvisionedBusinessState();
         verify(keycloakProvisioningClient).createUser(EMAIL, FULL_NAME, PASSWORD);
@@ -284,7 +288,28 @@ class InvitationAcceptanceIntegrationTests {
         Map<String, String> invalidRequest = Map.of(
                 "token", TOKEN,
                 "fullName", FULL_NAME,
-                "password", "short");
+                "password", "short",
+                "preferredLanguage", "TR");
+
+        ResponseEntity<ErrorResponse> response = restTemplate.postForEntity(
+                ENDPOINT,
+                invalidRequest,
+                ErrorResponse.class);
+
+        assertError(response, HttpStatus.BAD_REQUEST, "VALIDATION_ERROR");
+        assertThat(invitationStatus()).isEqualTo("PENDING");
+        assertThat(countUsers()).isZero();
+        verifyNoInteractions(keycloakProvisioningClient);
+    }
+
+    @Test
+    void validatesPreferredLanguageBeforeCreatingIamState() {
+        insertInvitation(TOKEN, "PENDING", Instant.now().plusSeconds(86_400));
+        Map<String, String> invalidRequest = Map.of(
+                "token", TOKEN,
+                "fullName", FULL_NAME,
+                "password", PASSWORD,
+                "preferredLanguage", "DE");
 
         ResponseEntity<ErrorResponse> response = restTemplate.postForEntity(
                 ENDPOINT,
@@ -345,11 +370,13 @@ class InvitationAcceptanceIntegrationTests {
         assertThat(invitation.get("accepted_at")).isNotNull();
     }
 
-    private Map<String, String> requestWithIgnoredIdentityFields() {
+    private Map<String, String> requestWithIgnoredIdentityFields(
+            PreferredLanguage preferredLanguage) {
         return Map.of(
                 "token", TOKEN,
                 "fullName", "  " + FULL_NAME + "  ",
                 "password", PASSWORD,
+                "preferredLanguage", preferredLanguage.name(),
                 "email", "attacker@demo.com",
                 "organizationName", "Attacker Organization");
     }
@@ -360,7 +387,8 @@ class InvitationAcceptanceIntegrationTests {
                 Map.of(
                         "token", TOKEN,
                         "fullName", FULL_NAME,
-                        "password", PASSWORD),
+                        "password", PASSWORD,
+                        "preferredLanguage", "TR"),
                 responseType);
     }
 

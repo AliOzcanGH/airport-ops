@@ -1,6 +1,7 @@
 package com.aliozcan.airportops.iam_service.auth.dto;
 
 import com.aliozcan.airportops.iam_service.domain.model.enums.UserStatus;
+import com.aliozcan.airportops.iam_service.domain.model.enums.PreferredLanguage;
 
 import java.util.SortedSet;
 import java.util.UUID;
@@ -10,6 +11,7 @@ public record AuthMeResponse(
         String issuer,
         String email,
         String fullName,
+        PreferredLanguage preferredLanguage,
         String preferredUsername,
         UUID iamUserId,
         UserStatus iamUserStatus,
