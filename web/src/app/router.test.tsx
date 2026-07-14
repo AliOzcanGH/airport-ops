@@ -7,6 +7,7 @@ import { routeDefinitions } from '@/app/router'
 import { apiClient } from '@/shared/api/apiClient'
 import { useUiStore } from '@/shared/stores/uiStore'
 import {
+  activeTenantUser,
   dualWorkspaceUser,
   noWorkspaceUser,
   platformUser,
@@ -49,6 +50,19 @@ function mockBackend(currentUser: AuthMeResponse | null) {
     if (url.endsWith('/actuator/health')) {
       return Response.json({ status: 'UP' })
     }
+    if (url.endsWith('/app/setup/overview')) {
+      return Response.json({
+        organizationId: currentUser?.tenantContext?.organizationId,
+        organizationName: currentUser?.tenantContext?.organizationName,
+        organizationStatus: currentUser?.tenantContext?.organizationStatus,
+        preferredLanguage: currentUser?.preferredLanguage ?? 'EN',
+        steps: [
+          { key: 'PROFILE', status: 'NOT_STARTED' },
+          { key: 'STATION', status: 'LOCKED' },
+          { key: 'REVIEW', status: 'LOCKED' },
+        ],
+      })
+    }
     return new Response(null, { status: 404 })
   })
   vi.stubGlobal('fetch', fetchMock)
@@ -85,9 +99,29 @@ describe('authenticated application routes', () => {
     expect(screen.getByText('platform.admin@demo.com')).toBeInTheDocument()
   })
 
-  it('redirects a tenant user to the tenant dashboard', async () => {
-    mockBackend(tenantUser)
+  it('redirects an onboarding tenant user to setup', async () => {
+    const fetchMock = mockBackend(tenantUser)
     renderRoute('/')
+    expect(
+      await screen.findByRole('heading', {
+        name: 'Example Airlines kurulumu',
+        level: 1,
+      }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('T\u00fcrk\u00e7e')).toBeInTheDocument()
+    expect(screen.getByText('Tenant kurulum ad\u0131mlar\u0131')).toBeInTheDocument()
+    expect(screen.queryByRole('navigation', {
+      name: 'Airline tenant navigation',
+    })).not.toBeInTheDocument()
+    expect(screen.queryByText('Tenant dashboard')).not.toBeInTheDocument()
+    expect(fetchMock.mock.calls.some(([url]) =>
+      String(url).endsWith('/app/setup/overview'),
+    )).toBe(true)
+  })
+
+  it('allows an active tenant user to reach the tenant dashboard', async () => {
+    mockBackend(activeTenantUser)
+    renderRoute('/app/dashboard')
     expect(
       await screen.findByRole('heading', {
         name: 'Example Airlines',
@@ -110,6 +144,14 @@ describe('authenticated application routes', () => {
   it('redirects tenant-only users away from platform routes', async () => {
     mockBackend(tenantUser)
     renderRoute('/platform/dashboard')
+    expect(
+      await screen.findByRole('heading', { name: 'Example Airlines kurulumu' }),
+    ).toBeInTheDocument()
+  })
+
+  it('redirects active tenants away from setup to the dashboard', async () => {
+    mockBackend(activeTenantUser)
+    renderRoute('/app/setup')
     expect(
       await screen.findByRole('heading', { name: 'Example Airlines' }),
     ).toBeInTheDocument()

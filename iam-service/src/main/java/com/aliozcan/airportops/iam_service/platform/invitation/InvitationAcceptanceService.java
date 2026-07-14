@@ -39,7 +39,8 @@ public class InvitationAcceptanceService {
             AcceptInvitationRequest request) {
         IamProvisioningResult provisioned = transactionService.provision(
                 request.token(),
-                request.fullName());
+                request.fullName(),
+                request.preferredLanguage());
 
         try {
             String keycloakUserId = keycloakProvisioningClient.createUser(

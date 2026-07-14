@@ -6,6 +6,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router'
 import { AppProviders } from '@/app/AppProviders'
 import { routeDefinitions } from '@/app/router'
 import { apiClient } from '@/shared/api/apiClient'
+import { i18n } from '@/shared/i18n/i18n'
 
 const validToken = 'abcdefghijklmnopqrstuvwxyzABCDEFGH_12345678'
 
@@ -126,6 +127,7 @@ describe('InvitationAcceptPage', () => {
   beforeEach(() => {
     apiClient.resetSessionState()
     vi.unstubAllGlobals()
+    void i18n.changeLanguage('en')
   })
 
   it('shows missing token state without validating', async () => {
@@ -189,13 +191,15 @@ describe('InvitationAcceptPage', () => {
     expect(acceptCalls(fetchMock)).toHaveLength(0)
   })
 
-  it('sends only token, fullName, and password when accepting', async () => {
+  it('sends only token, fullName, password, and preferredLanguage when accepting', async () => {
     const user = userEvent.setup()
     const storageWrite = vi.spyOn(Storage.prototype, 'setItem')
     const { fetchMock } = renderAccept()
 
     await screen.findByText('Invitation details')
     await user.type(screen.getByLabelText('Full name'), 'Lufthansa Admin')
+    await user.selectOptions(screen.getByLabelText('Preferred language'), 'TR')
+    expect(i18n.language).toBe('tr')
     await user.type(screen.getByLabelText('Password'), 'StrongPassword123!')
     await user.type(screen.getByLabelText('Confirm password'), 'StrongPassword123!')
     await user.click(screen.getByRole('button', { name: 'Accept invitation' }))
@@ -214,6 +218,7 @@ describe('InvitationAcceptPage', () => {
       token: validToken,
       fullName: 'Lufthansa Admin',
       password: 'StrongPassword123!',
+      preferredLanguage: 'TR',
     })
     expect(JSON.stringify(JSON.parse(String(init.body)))).not.toContain('confirmPassword')
     expect(JSON.stringify(JSON.parse(String(init.body)))).not.toContain('organizationName')
