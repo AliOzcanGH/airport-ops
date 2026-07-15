@@ -128,6 +128,30 @@ authentication flow for production applications.
 
 Keycloak Admin Console: `http://127.0.0.1:8085/admin`
 
+## Local SES Invitation Email Setup
+
+Platform invitation creation can send real invitation email through AWS SESv2.
+AWS credentials are not stored in this repository. Use the AWS default credential
+provider chain, such as `AWS_PROFILE`, `AWS_ACCESS_KEY_ID` /
+`AWS_SECRET_ACCESS_KEY`, or your local AWS configuration.
+
+For local testing:
+
+- Verify the SES sender identity.
+- While the SES account is in sandbox mode, verify the recipient email address too.
+- Configure the AWS region with `AWS_REGION` or `app.aws.region`.
+- Configure the sender with `APP_MAIL_FROM`.
+- Configure the frontend accept URL with
+  `APP_INVITATION_ACCEPT_BASE_URL=http://127.0.0.1:5173/invitations/accept`.
+- Keep `APP_INVITATION_DEV_LINK_ENABLED=true` only for local development fallback.
+- Set `APP_INVITATION_DEV_LINK_ENABLED=false` outside local development so raw
+  invitation links are not returned by the API.
+
+W5B intentionally does not include an outbox, retry, or resend endpoint. If SES
+succeeds but the delivery-status database update fails, the email may have been
+sent while the invitation row still shows a stale delivery status. That consistency
+gap is accepted for the MVP and should be addressed by a future retry/outbox phase.
+
 ## Get a Keycloak Access Token
 
 ```powershell

@@ -23,7 +23,9 @@ function backendError(status: number, errorCode: string, message: string, path: 
   )
 }
 
-function renderPlatformInvitations(outcome: 'success' | 'duplicate' = 'success') {
+function renderPlatformInvitations(
+  outcome: 'success' | 'duplicate' | 'failed' | 'no-dev-link' = 'success',
+) {
   const requests: RequestInit[] = []
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input)
@@ -52,7 +54,12 @@ function renderPlatformInvitations(outcome: 'success' | 'duplicate' = 'success')
           organizationName: 'THY Airlines',
           status: 'PENDING',
           expiresAt: '2026-07-10T10:00:00Z',
-          invitationToken: rawToken,
+          emailDeliveryStatus: outcome === 'failed' ? 'FAILED' : 'SENT',
+          emailSentAt: outcome === 'failed' ? null : '2026-07-07T10:00:00Z',
+          devAcceptLink:
+            outcome === 'no-dev-link'
+              ? null
+              : `${window.location.origin}/invitations/accept?token=${rawToken}`,
         },
         { status: 201 },
       )
@@ -103,7 +110,7 @@ describe('PlatformInvitationsPage', () => {
     expect(new Headers(init.headers).get('X-XSRF-TOKEN')).toBe('csrf-token')
   })
 
-  it('shows a copyable local development accept link on success', async () => {
+  it('shows email delivery status and a copyable local development accept link on success', async () => {
     const user = userEvent.setup()
     renderPlatformInvitations()
 
@@ -111,9 +118,11 @@ describe('PlatformInvitationsPage', () => {
     await user.type(screen.getByLabelText('Airline / organization name'), 'THY Airlines')
     await user.click(screen.getByRole('button', { name: 'Create invitation' }))
 
-    const link = await screen.findByLabelText('Local/dev accept link')
+    expect(await screen.findByText('Invitation email sent to the tenant administrator.')).toBeInTheDocument()
+    expect(screen.getByText(/SENT - sent/i)).toBeInTheDocument()
+    const link = await screen.findByLabelText('Local/dev fallback accept link')
     expect(link).toHaveValue(`${window.location.origin}/invitations/accept?token=${rawToken}`)
-    expect(screen.getByText(/local development and manual testing/i)).toBeInTheDocument()
+    expect(screen.getByText(/development fallback only/i)).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Copy link' }))
     await waitFor(() =>
@@ -134,5 +143,31 @@ describe('PlatformInvitationsPage', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'A pending invitation already exists for this email.',
     )
+  })
+
+  it('shows failed email delivery state without hiding the available fallback link', async () => {
+    const user = userEvent.setup()
+    renderPlatformInvitations('failed')
+
+    await user.type(await screen.findByLabelText('Invited admin email'), 'tenant.admin@thy.demo')
+    await user.type(screen.getByLabelText('Airline / organization name'), 'THY Airlines')
+    await user.click(screen.getByRole('button', { name: 'Create invitation' }))
+
+    expect(
+      await screen.findByText(/Invitation created, but email delivery failed/i),
+    ).toBeInTheDocument()
+    expect(screen.getByLabelText('Local/dev fallback accept link')).toBeInTheDocument()
+  })
+
+  it('does not show a fallback link when backend omits devAcceptLink', async () => {
+    const user = userEvent.setup()
+    renderPlatformInvitations('no-dev-link')
+
+    await user.type(await screen.findByLabelText('Invited admin email'), 'tenant.admin@thy.demo')
+    await user.type(screen.getByLabelText('Airline / organization name'), 'THY Airlines')
+    await user.click(screen.getByRole('button', { name: 'Create invitation' }))
+
+    await screen.findByText('Invitation email sent to the tenant administrator.')
+    expect(screen.queryByLabelText('Local/dev fallback accept link')).not.toBeInTheDocument()
   })
 })

@@ -42,6 +42,11 @@ export const invitationStatusSchema = z.enum([
   'CANCELLED',
   'EXPIRED',
 ])
+export const invitationEmailDeliveryStatusSchema = z.enum([
+  'NOT_SENT',
+  'SENT',
+  'FAILED',
+])
 export const provisioningStatusSchema = z.enum([
   'READY',
   'LOGIN_SETUP_PENDING',
@@ -104,7 +109,9 @@ export const platformInvitationResponseSchema = z.object({
   organizationName: z.string().min(1),
   status: invitationStatusSchema,
   expiresAt: z.string().min(1),
-  invitationToken: invitationTokenSchema,
+  emailDeliveryStatus: invitationEmailDeliveryStatusSchema,
+  emailSentAt: z.string().nullable(),
+  devAcceptLink: z.string().nullable(),
 })
 
 export const validateInvitationRequestSchema = z.object({
@@ -208,6 +215,9 @@ export type TenantContext = z.infer<typeof tenantContextSchema>
 export type AuthMeResponse = z.infer<typeof authMeResponseSchema>
 export type LoginRequest = z.infer<typeof loginRequestSchema>
 export type InvitationStatus = z.infer<typeof invitationStatusSchema>
+export type InvitationEmailDeliveryStatus = z.infer<
+  typeof invitationEmailDeliveryStatusSchema
+>
 export type OrganizationMemberStatus = z.infer<
   typeof organizationMemberStatusSchema
 >
