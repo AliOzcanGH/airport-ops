@@ -1,5 +1,6 @@
 package com.aliozcan.airportops.iam_service.domain.model;
 
+import com.aliozcan.airportops.iam_service.domain.model.enums.InvitationEmailDeliveryStatus;
 import com.aliozcan.airportops.iam_service.domain.model.enums.InvitationStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -49,6 +50,16 @@ public class InvitationEntity {
     @Column(name = "accepted_at")
     private Instant acceptedAt;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "email_delivery_status", nullable = false, length = 20)
+    private InvitationEmailDeliveryStatus emailDeliveryStatus;
+
+    @Column(name = "email_sent_at")
+    private Instant emailSentAt;
+
+    @Column(name = "email_failure_reason", length = 500)
+    private String emailFailureReason;
+
     protected InvitationEntity() {
     }
 
@@ -63,7 +74,10 @@ public class InvitationEntity {
             Instant createdAt,
             Instant updatedAt,
             UUID organizationId,
-            Instant acceptedAt) {
+            Instant acceptedAt,
+            InvitationEmailDeliveryStatus emailDeliveryStatus,
+            Instant emailSentAt,
+            String emailFailureReason) {
         this.id = id;
         this.companyName = companyName;
         this.adminEmail = adminEmail;
@@ -75,6 +89,9 @@ public class InvitationEntity {
         this.updatedAt = updatedAt;
         this.organizationId = organizationId;
         this.acceptedAt = acceptedAt;
+        this.emailDeliveryStatus = emailDeliveryStatus;
+        this.emailSentAt = emailSentAt;
+        this.emailFailureReason = emailFailureReason;
     }
 
     public static InvitationEntity pending(
@@ -95,6 +112,9 @@ public class InvitationEntity {
                 createdAt,
                 createdAt,
                 null,
+                null,
+                InvitationEmailDeliveryStatus.NOT_SENT,
+                null,
                 null
         );
     }
@@ -106,6 +126,20 @@ public class InvitationEntity {
         this.status = InvitationStatus.ACCEPTED;
         this.organizationId = organizationId;
         this.acceptedAt = now;
+        this.updatedAt = now;
+    }
+
+    public void markEmailSent(Instant now) {
+        this.emailDeliveryStatus = InvitationEmailDeliveryStatus.SENT;
+        this.emailSentAt = now;
+        this.emailFailureReason = null;
+        this.updatedAt = now;
+    }
+
+    public void markEmailFailed(String sanitizedReason, Instant now) {
+        this.emailDeliveryStatus = InvitationEmailDeliveryStatus.FAILED;
+        this.emailSentAt = null;
+        this.emailFailureReason = sanitizedReason;
         this.updatedAt = now;
     }
 
@@ -151,5 +185,17 @@ public class InvitationEntity {
 
     public Instant getAcceptedAt() {
         return acceptedAt;
+    }
+
+    public InvitationEmailDeliveryStatus getEmailDeliveryStatus() {
+        return emailDeliveryStatus;
+    }
+
+    public Instant getEmailSentAt() {
+        return emailSentAt;
+    }
+
+    public String getEmailFailureReason() {
+        return emailFailureReason;
     }
 }

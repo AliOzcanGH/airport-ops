@@ -14,10 +14,6 @@ import {
   type ValidateInvitationRequest,
 } from '@/shared/api/schemas'
 
-export function buildLocalInvitationAcceptLink(rawToken: string): string {
-  return `${window.location.origin}/invitations/accept?token=${encodeURIComponent(rawToken)}`
-}
-
 export const invitationApi = {
   createPlatformInvitation(
     request: CreatePlatformInvitationRequest,

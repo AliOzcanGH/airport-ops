@@ -18,6 +18,7 @@ repositories {
 }
 
 dependencies {
+	implementation(platform("software.amazon.awssdk:bom:2.29.52"))
 	implementation("org.springframework.boot:spring-boot-starter-actuator")
 	implementation("org.springframework.boot:spring-boot-starter-data-jpa")
 	implementation("org.springframework.boot:spring-boot-starter-validation")
@@ -26,6 +27,7 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-oauth2-resource-server")
 	implementation("org.springframework.security:spring-security-crypto")
 	implementation("org.keycloak:keycloak-admin-client:26.0.10")
+	implementation("software.amazon.awssdk:sesv2")
 	implementation("org.flywaydb:flyway-core")
 	implementation("org.flywaydb:flyway-database-postgresql")
 	runtimeOnly("org.postgresql:postgresql")
