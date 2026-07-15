@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { Check, Clipboard, MailPlus } from 'lucide-react'
-import { invitationApi, buildLocalInvitationAcceptLink } from '@/features/invitations/api/invitationApi'
+import { invitationApi } from '@/features/invitations/api/invitationApi'
 import { ApiError } from '@/shared/api/ApiError'
 import {
   createPlatformInvitationRequestSchema,
@@ -44,9 +44,7 @@ export function PlatformInvitationsPage() {
     onSuccess: () => setCopyState('idle'),
   })
   const invitation = createInvitation.data
-  const acceptLink = invitation
-    ? buildLocalInvitationAcceptLink(invitation.invitationToken)
-    : ''
+  const acceptLink = invitation?.devAcceptLink ?? ''
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -205,7 +203,7 @@ function InvitationResult({
           Local invitation link
         </h2>
         <p className="mt-2 text-sm leading-6 text-slate-600">
-          After creation, the local/dev invitation link appears here. Email delivery is not part of W3.
+          After creation, email delivery status appears here. Local/dev fallback links are shown only when enabled by the backend.
         </p>
       </aside>
     )
@@ -222,7 +220,11 @@ function InvitationResult({
             Invitation created
           </h2>
           <p className="mt-1 text-sm leading-6 text-emerald-800">
-            This raw token link is shown only for local development and manual testing.
+            {invitation.emailDeliveryStatus === 'SENT'
+              ? 'Invitation email sent to the tenant administrator.'
+              : invitation.emailDeliveryStatus === 'FAILED'
+                ? 'Invitation created, but email delivery failed. Use the local development fallback link if it is available.'
+                : 'Invitation created. Email delivery has not been completed yet.'}
           </p>
         </div>
       </div>
@@ -246,36 +248,48 @@ function InvitationResult({
             <dd className="mt-0.5 text-emerald-800">{formatDate(invitation.expiresAt)}</dd>
           </div>
         </div>
+        <div>
+          <dt className="font-medium text-emerald-950">Email delivery</dt>
+          <dd className="mt-0.5 text-emerald-800">
+            {invitation.emailDeliveryStatus}
+            {invitation.emailSentAt ? ` - sent ${formatDate(invitation.emailSentAt)}` : ''}
+          </dd>
+        </div>
       </dl>
 
-      <div>
-        <label htmlFor="accept-link" className="text-xs font-semibold uppercase text-emerald-900">
-          Local/dev accept link
-        </label>
-        <textarea
-          id="accept-link"
-          readOnly
-          rows={3}
-          value={acceptLink}
-          className="mt-1.5 w-full resize-none rounded-md border border-emerald-300 bg-white px-3 py-2 font-mono text-xs text-slate-950"
-        />
-        <button
-          type="button"
-          onClick={onCopy}
-          className="mt-2 inline-flex h-9 items-center gap-2 rounded-md border border-emerald-300 bg-white px-3 text-sm font-semibold text-emerald-800 hover:bg-emerald-100"
-        >
-          <Clipboard aria-hidden="true" size={16} />
-          Copy link
-        </button>
-        {copyState === 'copied' ? (
-          <p className="mt-2 text-xs font-medium text-emerald-800">Copied.</p>
-        ) : null}
-        {copyState === 'failed' ? (
-          <p className="mt-2 text-xs font-medium text-red-700">
-            Copy failed. Select the link manually.
+      {acceptLink ? (
+        <div>
+          <label htmlFor="accept-link" className="text-xs font-semibold uppercase text-emerald-900">
+            Local/dev fallback accept link
+          </label>
+          <textarea
+            id="accept-link"
+            readOnly
+            rows={3}
+            value={acceptLink}
+            className="mt-1.5 w-full resize-none rounded-md border border-emerald-300 bg-white px-3 py-2 font-mono text-xs text-slate-950"
+          />
+          <p className="mt-1.5 text-xs text-emerald-800">
+            Development fallback only. Disable this outside local/dev environments.
           </p>
-        ) : null}
-      </div>
+          <button
+            type="button"
+            onClick={onCopy}
+            className="mt-2 inline-flex h-9 items-center gap-2 rounded-md border border-emerald-300 bg-white px-3 text-sm font-semibold text-emerald-800 hover:bg-emerald-100"
+          >
+            <Clipboard aria-hidden="true" size={16} />
+            Copy link
+          </button>
+          {copyState === 'copied' ? (
+            <p className="mt-2 text-xs font-medium text-emerald-800">Copied.</p>
+          ) : null}
+          {copyState === 'failed' ? (
+            <p className="mt-2 text-xs font-medium text-red-700">
+              Copy failed. Select the link manually.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
     </aside>
   )
 }
