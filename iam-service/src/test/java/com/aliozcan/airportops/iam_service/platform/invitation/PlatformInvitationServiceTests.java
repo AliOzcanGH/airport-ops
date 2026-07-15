@@ -20,13 +20,13 @@ class PlatformInvitationServiceTests {
 
     private InvitationRepository invitationRepository;
     private InvitationTokenService invitationTokenService;
-    private PlatformInvitationService service;
+    private PlatformInvitationCreationTransactionService service;
 
     @BeforeEach
     void setUp() {
         invitationRepository = mock(InvitationRepository.class);
         invitationTokenService = mock(InvitationTokenService.class);
-        service = new PlatformInvitationService(
+        service = new PlatformInvitationCreationTransactionService(
                 invitationRepository,
                 invitationTokenService);
 

@@ -1,5 +1,6 @@
 package com.aliozcan.airportops.iam_service.platform.invitation.dto;
 
+import com.aliozcan.airportops.iam_service.domain.model.enums.InvitationEmailDeliveryStatus;
 import com.aliozcan.airportops.iam_service.domain.model.enums.InvitationStatus;
 
 import java.time.Instant;
@@ -11,6 +12,8 @@ public record PlatformInvitationResponse(
         String organizationName,
         InvitationStatus status,
         Instant expiresAt,
-        String invitationToken
+        InvitationEmailDeliveryStatus emailDeliveryStatus,
+        Instant emailSentAt,
+        String devAcceptLink
 ) {
 }

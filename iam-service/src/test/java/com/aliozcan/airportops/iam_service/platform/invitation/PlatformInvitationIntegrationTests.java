@@ -20,6 +20,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.jdbc.Sql;
 
+import java.net.URI;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
@@ -82,9 +85,13 @@ class PlatformInvitationIntegrationTests {
         assertThat(json.get("email").asText()).isEqualTo("admin@pegasus.demo");
         assertThat(json.get("organizationName").asText()).isEqualTo("Pegasus Airlines");
         assertThat(json.get("status").asText()).isEqualTo("PENDING");
-        assertThat(json.has("invitationToken")).isTrue();
-        assertThat(json.get("invitationToken").asText()).matches("[A-Za-z0-9_-]{43}");
+        assertThat(json.get("emailDeliveryStatus").asText()).isEqualTo("FAILED");
+        assertThat(json.get("emailSentAt").isNull()).isTrue();
+        assertThat(json.get("devAcceptLink").asText())
+                .startsWith("http://127.0.0.1:5173/invitations/accept?token=");
+        assertThat(json.has("invitationToken")).isFalse();
         assertThat(json.has("tokenHash")).isFalse();
+        assertThat(json.has("emailFailureReason")).isFalse();
 
         UUID invitationId = UUID.fromString(json.get("id").asText());
         Instant expiresAt = Instant.parse(json.get("expiresAt").asText());
@@ -95,16 +102,23 @@ class PlatformInvitationIntegrationTests {
 
         Map<String, Object> persisted = jdbcTemplate.queryForMap(
                 """
-                        SELECT token_hash, created_by_user_id
+                        SELECT token_hash, created_by_user_id,
+                               email_delivery_status, email_failure_reason
                         FROM iam.invitations
                         WHERE id = ?
                         """,
                 invitationId);
-        String rawToken = json.get("invitationToken").asText();
+        String rawToken = tokenFromAcceptLink(json.get("devAcceptLink").asText());
+        assertThat(rawToken).matches("[A-Za-z0-9_-]{43}");
         String persistedHash = (String) persisted.get("token_hash");
         assertThat(persistedHash)
                 .isNotEqualTo(rawToken)
                 .isEqualTo(invitationTokenService.hash(rawToken));
+        assertThat(persisted.get("email_delivery_status")).isEqualTo("FAILED");
+        assertThat((String) persisted.get("email_failure_reason"))
+                .contains("app.mail.from")
+                .doesNotContain(rawToken)
+                .doesNotContain(persistedHash);
 
         UUID platformAdminId = jdbcTemplate.queryForObject(
                 "SELECT id FROM iam.users WHERE lower(email) = 'platform.admin@demo.com'",
@@ -218,5 +232,16 @@ class PlatformInvitationIntegrationTests {
         assertThat(response.getBody().error()).isEqualTo(expectedStatus.name());
         assertThat(response.getBody().errorCode()).isEqualTo(expectedErrorCode);
         assertThat(response.getBody().path()).isEqualTo(ENDPOINT);
+    }
+
+    private String tokenFromAcceptLink(String value) {
+        String query = URI.create(value).getRawQuery();
+        for (String parameter : query.split("&")) {
+            String[] parts = parameter.split("=", 2);
+            if (parts.length == 2 && parts[0].equals("token")) {
+                return URLDecoder.decode(parts[1], StandardCharsets.UTF_8);
+            }
+        }
+        throw new AssertionError("token query parameter not found");
     }
 }
