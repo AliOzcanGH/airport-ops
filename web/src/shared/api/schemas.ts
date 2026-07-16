@@ -85,6 +85,34 @@ export const loginRequestSchema = z.object({
   password: z.string().min(1, 'Password is required'),
 })
 
+const mfaLoginChallengeBaseSchema = z.object({
+  challengeId: z.uuid(),
+  expiresAt: z.string().min(1),
+  attemptsRemaining: z.number().int().nonnegative(),
+})
+
+export const mfaRequiredLoginResponseSchema =
+  mfaLoginChallengeBaseSchema.extend({
+    outcome: z.literal('MFA_REQUIRED'),
+  })
+
+export const mfaEnrollmentRequiredLoginResponseSchema =
+  mfaLoginChallengeBaseSchema.extend({
+    outcome: z.literal('MFA_ENROLLMENT_REQUIRED'),
+    otpauthUri: z.string().startsWith('otpauth://'),
+    manualEntryKey: z.string().min(1),
+  })
+
+export const loginResponseSchema = z.discriminatedUnion('outcome', [
+  mfaRequiredLoginResponseSchema,
+  mfaEnrollmentRequiredLoginResponseSchema,
+])
+
+export const verifyMfaRequestSchema = z.object({
+  challengeId: z.uuid(),
+  code: z.string().regex(/^\d{6}$/, 'Enter a 6-digit code'),
+})
+
 export const invitationTokenSchema = z
   .string()
   .regex(/^[A-Za-z0-9_-]{43}$/, 'Invitation token is invalid')
@@ -214,6 +242,14 @@ export type WorkspaceType = z.infer<typeof workspaceTypeSchema>
 export type TenantContext = z.infer<typeof tenantContextSchema>
 export type AuthMeResponse = z.infer<typeof authMeResponseSchema>
 export type LoginRequest = z.infer<typeof loginRequestSchema>
+export type MfaRequiredLoginResponse = z.infer<
+  typeof mfaRequiredLoginResponseSchema
+>
+export type MfaEnrollmentRequiredLoginResponse = z.infer<
+  typeof mfaEnrollmentRequiredLoginResponseSchema
+>
+export type LoginResponse = z.infer<typeof loginResponseSchema>
+export type VerifyMfaRequest = z.infer<typeof verifyMfaRequestSchema>
 export type InvitationStatus = z.infer<typeof invitationStatusSchema>
 export type InvitationEmailDeliveryStatus = z.infer<
   typeof invitationEmailDeliveryStatusSchema
