@@ -60,6 +60,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/invitations/accept").permitAll()
                         .requestMatchers(HttpMethod.GET, "/auth/session/csrf").permitAll()
                         .requestMatchers(HttpMethod.POST, "/auth/session/login").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/auth/session/mfa/verify")
+                                .permitAll()
                         .requestMatchers(HttpMethod.POST, "/auth/session/refresh").permitAll()
                         .requestMatchers(HttpMethod.POST, "/auth/session/logout").permitAll()
                         .requestMatchers(HttpMethod.GET, "/auth/keycloak/me").authenticated()
