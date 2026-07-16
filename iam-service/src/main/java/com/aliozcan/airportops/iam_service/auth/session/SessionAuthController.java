@@ -1,6 +1,8 @@
 package com.aliozcan.airportops.iam_service.auth.session;
 
 import com.aliozcan.airportops.iam_service.auth.session.dto.CsrfMetadataResponse;
+import com.aliozcan.airportops.iam_service.auth.session.dto.MfaLoginChallengeResponse;
+import com.aliozcan.airportops.iam_service.auth.session.dto.MfaVerifyRequest;
 import com.aliozcan.airportops.iam_service.auth.session.dto.SessionLoginRequest;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -37,11 +39,17 @@ public class SessionAuthController {
     }
 
     @PostMapping("/login")
+    public MfaLoginChallengeResponse login(
+            @Valid @RequestBody SessionLoginRequest request) {
+        return sessionAuthService.login(request.email(), request.password());
+    }
+
+    @PostMapping("/mfa/verify")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void login(
-            @Valid @RequestBody SessionLoginRequest request,
+    public void verifyMfa(
+            @Valid @RequestBody MfaVerifyRequest request,
             HttpServletResponse response) {
-        sessionAuthService.login(request.email(), request.password(), response);
+        sessionAuthService.verifyMfa(request.challengeId(), request.code(), response);
     }
 
     @PostMapping("/refresh")

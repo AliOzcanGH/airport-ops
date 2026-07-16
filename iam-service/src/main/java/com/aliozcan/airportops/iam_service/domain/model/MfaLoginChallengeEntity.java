@@ -277,4 +277,29 @@ public class MfaLoginChallengeEntity {
     public Instant getUpdatedAt() {
         return updatedAt;
     }
+
+    public void recordFailedAttempt(Instant now) {
+        if (status != MfaChallengeStatus.PENDING) {
+            return;
+        }
+        attemptCount++;
+        if (attemptCount >= maxAttempts) {
+            status = MfaChallengeStatus.LOCKED;
+        }
+        updatedAt = now;
+    }
+
+    public void expire(Instant now) {
+        if (status == MfaChallengeStatus.PENDING) {
+            status = MfaChallengeStatus.EXPIRED;
+            updatedAt = now;
+        }
+    }
+
+    public void lock(Instant now) {
+        if (status == MfaChallengeStatus.PENDING) {
+            status = MfaChallengeStatus.LOCKED;
+            updatedAt = now;
+        }
+    }
 }
