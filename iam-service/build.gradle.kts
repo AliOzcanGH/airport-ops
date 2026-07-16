@@ -28,6 +28,7 @@ dependencies {
 	implementation("org.springframework.security:spring-security-crypto")
 	implementation("org.keycloak:keycloak-admin-client:26.0.10")
 	implementation("software.amazon.awssdk:sesv2")
+	implementation("dev.samstevens.totp:totp:1.7.1")
 	implementation("org.flywaydb:flyway-core")
 	implementation("org.flywaydb:flyway-database-postgresql")
 	runtimeOnly("org.postgresql:postgresql")
@@ -37,6 +38,10 @@ dependencies {
 
 tasks.withType<Test> {
 	useJUnitPlatform()
+	systemProperty(
+		"APP_TOTP_ENCRYPTION_KEY",
+		"MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
+	)
 }
 
 tasks.named<JavaCompile>("compileTestJava") {
