@@ -30,8 +30,11 @@ Bearer-header requests retain their existing behavior. Authorization header inpu
 always takes precedence over an access-token cookie and an invalid header never
 falls back to the cookie.
 
-Tokens and passwords are not stored in the IAM database, returned in response
-bodies, or written to application logs.
+Passwords are not stored in the IAM database. Mandatory application-level TOTP MFA
+temporarily stores pending Keycloak access and refresh tokens encrypted in the IAM
+database until the login challenge succeeds or expires. Tokens, passwords, TOTP
+secrets, and MFA codes are never written to application logs or returned to
+frontend code.
 
 ## Local-Lab Exception
 
@@ -60,6 +63,8 @@ audience validation, rate limiting, and managed client secrets.
 
 - End users interact only with Airport Ops pages.
 - The browser cannot read Keycloak access or refresh tokens.
+- Password verification alone does not create a browser session; the mandatory
+  TOTP challenge must also succeed.
 - CSRF protection is mandatory because cookies are sent automatically.
 - Existing Bearer-token API clients remain compatible.
 - Refresh and logout require the IAM service to communicate with Keycloak.
