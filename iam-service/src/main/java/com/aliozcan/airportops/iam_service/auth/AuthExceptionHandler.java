@@ -2,6 +2,10 @@ package com.aliozcan.airportops.iam_service.auth;
 
 import com.aliozcan.airportops.iam_service.auth.dto.ErrorResponse;
 import com.aliozcan.airportops.iam_service.auth.session.AuthProviderUnavailableException;
+import com.aliozcan.airportops.iam_service.auth.session.MfaChallengeExpiredException;
+import com.aliozcan.airportops.iam_service.auth.session.MfaChallengeLockedException;
+import com.aliozcan.airportops.iam_service.auth.session.MfaCodeInvalidException;
+import com.aliozcan.airportops.iam_service.auth.session.MfaConfigurationException;
 import com.aliozcan.airportops.iam_service.auth.session.SessionExpiredException;
 import com.aliozcan.airportops.iam_service.platform.invitation.InvitationAlreadyUsedException;
 import com.aliozcan.airportops.iam_service.platform.invitation.InvitationExpiredException;
@@ -43,6 +47,14 @@ public class AuthExceptionHandler {
             "Authentication provider is temporarily unavailable";
     private static final String SESSION_EXPIRED_MESSAGE =
             "Session has expired";
+    private static final String MFA_CHALLENGE_EXPIRED_MESSAGE =
+            "MFA challenge has expired";
+    private static final String MFA_CHALLENGE_LOCKED_MESSAGE =
+            "MFA challenge is locked";
+    private static final String MFA_CODE_INVALID_MESSAGE =
+            "MFA code is invalid";
+    private static final String MFA_CONFIGURATION_ERROR_MESSAGE =
+            "MFA is temporarily unavailable";
     private static final String TENANT_NOT_FOUND_MESSAGE =
             "Tenant organization not found";
 
@@ -101,6 +113,50 @@ public class AuthExceptionHandler {
                 HttpStatus.UNAUTHORIZED,
                 "SESSION_EXPIRED",
                 SESSION_EXPIRED_MESSAGE,
+                request);
+    }
+
+    @ExceptionHandler(MfaChallengeExpiredException.class)
+    public ResponseEntity<ErrorResponse> handleMfaChallengeExpired(
+            MfaChallengeExpiredException exception,
+            HttpServletRequest request) {
+        return errorResponse(
+                HttpStatus.UNAUTHORIZED,
+                "MFA_CHALLENGE_EXPIRED",
+                MFA_CHALLENGE_EXPIRED_MESSAGE,
+                request);
+    }
+
+    @ExceptionHandler(MfaChallengeLockedException.class)
+    public ResponseEntity<ErrorResponse> handleMfaChallengeLocked(
+            MfaChallengeLockedException exception,
+            HttpServletRequest request) {
+        return errorResponse(
+                HttpStatus.UNAUTHORIZED,
+                "MFA_CHALLENGE_LOCKED",
+                MFA_CHALLENGE_LOCKED_MESSAGE,
+                request);
+    }
+
+    @ExceptionHandler(MfaCodeInvalidException.class)
+    public ResponseEntity<ErrorResponse> handleMfaCodeInvalid(
+            MfaCodeInvalidException exception,
+            HttpServletRequest request) {
+        return errorResponse(
+                HttpStatus.UNAUTHORIZED,
+                "MFA_CODE_INVALID",
+                MFA_CODE_INVALID_MESSAGE,
+                request);
+    }
+
+    @ExceptionHandler(MfaConfigurationException.class)
+    public ResponseEntity<ErrorResponse> handleMfaConfiguration(
+            MfaConfigurationException exception,
+            HttpServletRequest request) {
+        return errorResponse(
+                HttpStatus.SERVICE_UNAVAILABLE,
+                "MFA_CONFIGURATION_ERROR",
+                MFA_CONFIGURATION_ERROR_MESSAGE,
                 request);
     }
 
