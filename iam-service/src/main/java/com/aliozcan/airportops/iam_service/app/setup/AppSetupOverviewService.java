@@ -2,10 +2,12 @@ package com.aliozcan.airportops.iam_service.app.setup;
 
 import com.aliozcan.airportops.iam_service.app.setup.dto.AppSetupOverviewResponse;
 import com.aliozcan.airportops.iam_service.app.setup.dto.AppSetupStepResponse;
+import com.aliozcan.airportops.iam_service.app.setup.dto.AppSetupProfileResponse;
 import com.aliozcan.airportops.iam_service.auth.UserNotProvisionedException;
 import com.aliozcan.airportops.iam_service.domain.model.UserEntity;
 import com.aliozcan.airportops.iam_service.domain.model.enums.OrganizationStatus;
 import com.aliozcan.airportops.iam_service.repository.TenantAuthorizationRepository;
+import com.aliozcan.airportops.iam_service.repository.OrganizationSetupProfileRepository;
 import com.aliozcan.airportops.iam_service.repository.UserRepository;
 import com.aliozcan.airportops.iam_service.repository.projection.TenantAuthorizationRow;
 import com.aliozcan.airportops.iam_service.security.IamAuthenticationDetails;
@@ -21,12 +23,15 @@ public class AppSetupOverviewService {
 
     private final UserRepository userRepository;
     private final TenantAuthorizationRepository tenantAuthorizationRepository;
+    private final OrganizationSetupProfileRepository profileRepository;
 
     public AppSetupOverviewService(
             UserRepository userRepository,
-            TenantAuthorizationRepository tenantAuthorizationRepository) {
+            TenantAuthorizationRepository tenantAuthorizationRepository,
+            OrganizationSetupProfileRepository profileRepository) {
         this.userRepository = userRepository;
         this.tenantAuthorizationRepository = tenantAuthorizationRepository;
+        this.profileRepository = profileRepository;
     }
 
     @Transactional(readOnly = true)
@@ -52,7 +57,10 @@ public class AppSetupOverviewService {
                 first.getOrganizationName(),
                 status,
                 user.getPreferredLanguage(),
-                placeholderSteps());
+                placeholderSteps(),
+                profileRepository.findById(first.getOrganizationId())
+                        .map(AppSetupProfileResponse::from)
+                        .orElse(null));
     }
 
     private IamAuthenticationDetails iamDetails(Authentication authentication) {
