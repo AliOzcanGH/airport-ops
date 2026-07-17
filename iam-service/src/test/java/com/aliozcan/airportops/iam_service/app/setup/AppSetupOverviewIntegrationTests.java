@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.context.annotation.Import;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -63,6 +64,9 @@ class AppSetupOverviewIntegrationTests {
     @Autowired
     private TestRestTemplate restTemplate;
 
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
     @Test
     void returnsUnauthorizedWithoutToken() {
         ResponseEntity<String> response = restTemplate.getForEntity(
@@ -101,6 +105,35 @@ class AppSetupOverviewIntegrationTests {
         assertThat(response.getBody().steps())
                 .extracting("status")
                 .containsExactly("NOT_STARTED", "LOCKED", "LOCKED");
+        assertThat(response.getBody().profile()).isNull();
+    }
+
+    @Test
+    void includesCanonicalSavedProfileWithoutChangingExistingFields() {
+        jdbcTemplate.update("""
+                INSERT INTO iam.organization_setup_profiles (
+                    organization_id, display_name, iata_code, icao_code,
+                    country_code, timezone, base_airport_iata,
+                    operations_contact_email)
+                SELECT id, 'Example Airlines', 'B6', 'EXA', 'TR',
+                       'Europe/Istanbul', 'IST', 'ops@example.com'
+                FROM iam.organizations WHERE name = 'W5A Onboarding'
+                """);
+
+        ResponseEntity<AppSetupOverviewResponse> response = get(
+                TestJwtDecoderConfig.W5A_ONBOARDING_TOKEN,
+                AppSetupOverviewResponse.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().organizationName()).isEqualTo("W5A Onboarding");
+        assertThat(response.getBody().organizationStatus().name())
+                .isEqualTo("ONBOARDING_INCOMPLETE");
+        assertThat(response.getBody().steps()).hasSize(3);
+        assertThat(response.getBody().profile()).isNotNull();
+        assertThat(response.getBody().profile().displayName())
+                .isEqualTo("Example Airlines");
+        assertThat(response.getBody().profile().iataCode()).isEqualTo("B6");
     }
 
     @Test

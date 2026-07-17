@@ -11,6 +11,7 @@ public record AppSetupOverviewResponse(
         String organizationName,
         OrganizationStatus organizationStatus,
         PreferredLanguage preferredLanguage,
-        List<AppSetupStepResponse> steps
+        List<AppSetupStepResponse> steps,
+        AppSetupProfileResponse profile
 ) {
 }
