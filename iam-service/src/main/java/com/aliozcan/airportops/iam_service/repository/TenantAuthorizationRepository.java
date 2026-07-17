@@ -40,4 +40,28 @@ public interface TenantAuthorizationRepository
             """, nativeQuery = true)
     List<TenantAuthorizationRow> findTenantAuthorizationByUserId(
             @Param("userId") UUID userId);
+
+    @Query(value = """
+            SELECT organization_record.id
+            FROM iam.organizations organization_record
+            JOIN iam.organization_members member
+              ON member.organization_id = organization_record.id
+             AND member.user_id = :userId
+             AND member.status = 'ACTIVE'
+             AND member.deleted_at IS NULL
+            WHERE organization_record.status = 'ONBOARDING_INCOMPLETE'
+              AND organization_record.deleted_at IS NULL
+              AND EXISTS (
+                  SELECT 1
+                  FROM iam.member_roles member_role
+                  JOIN iam.roles role_record
+                    ON role_record.id = member_role.role_id
+                   AND role_record.scope = 'ORGANIZATION'
+                   AND role_record.code = 'AIRLINE_ADMIN'
+                  WHERE member_role.member_id = member.id
+              )
+            FOR UPDATE OF organization_record
+            """, nativeQuery = true)
+    List<UUID> findOnboardingAirlineAdminOrganizationIdsForUpdate(
+            @Param("userId") UUID userId);
 }
