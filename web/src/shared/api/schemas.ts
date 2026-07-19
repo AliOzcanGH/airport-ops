@@ -227,12 +227,78 @@ export const setupStepSchema = z.object({
   status: setupStepStatusSchema,
 })
 
+const optionalUppercaseCode = (pattern: RegExp, message: string) =>
+  z
+    .string()
+    .transform((value) => value.trim().toUpperCase() || null)
+    .refine((value) => value === null || pattern.test(value), message)
+
+const optionalTrimmedString = (maxLength: number, message: string) =>
+  z
+    .string()
+    .transform((value) => value.trim() || null)
+    .refine((value) => value === null || value.length <= maxLength, message)
+
+const optionalEmail = z
+  .string()
+  .transform((value) => value.trim().toLowerCase() || null)
+  .refine(
+    (value) => value === null || value.length <= 254,
+    'setup.validation.operationsContactEmailMax',
+  )
+  .refine(
+    (value) => value === null || z.email().safeParse(value).success,
+    'setup.validation.operationsContactEmailInvalid',
+  )
+
+export const setupProfileFormSchema = z.object({
+  displayName: z
+    .string()
+    .trim()
+    .min(2, 'setup.validation.displayNameMin')
+    .max(160, 'setup.validation.displayNameMax'),
+  iataCode: optionalUppercaseCode(
+    /^[A-Z0-9]{2}$/,
+    'setup.validation.iataCode',
+  ),
+  icaoCode: optionalUppercaseCode(
+    /^[A-Z]{3}$/,
+    'setup.validation.icaoCode',
+  ),
+  countryCode: optionalUppercaseCode(
+    /^[A-Z]{2}$/,
+    'setup.validation.countryCode',
+  ),
+  timezone: optionalTrimmedString(80, 'setup.validation.timezoneMax'),
+  baseAirportIata: optionalUppercaseCode(
+    /^[A-Z]{3}$/,
+    'setup.validation.baseAirportIata',
+  ),
+  operationsContactEmail: optionalEmail,
+})
+
+export const setupProfileRequestSchema = setupProfileFormSchema
+
+export const setupProfileResponseSchema = z.object({
+  organizationId: z.uuid(),
+  displayName: z.string().min(1),
+  iataCode: z.string().nullable(),
+  icaoCode: z.string().nullable(),
+  countryCode: z.string().nullable(),
+  timezone: z.string().nullable(),
+  baseAirportIata: z.string().nullable(),
+  operationsContactEmail: z.string().nullable(),
+  createdAt: z.string().min(1),
+  updatedAt: z.string().min(1),
+})
+
 export const setupOverviewResponseSchema = z.object({
   organizationId: z.uuid(),
   organizationName: z.string().min(1),
   organizationStatus: organizationStatusSchema,
   preferredLanguage: preferredLanguageSchema,
   steps: z.array(setupStepSchema),
+  profile: setupProfileResponseSchema.nullable(),
 })
 
 export type HealthResponse = z.infer<typeof healthResponseSchema>
@@ -287,4 +353,7 @@ export type PlatformTenantDetailResponse = z.infer<
   typeof platformTenantDetailResponseSchema
 >
 export type SetupStep = z.infer<typeof setupStepSchema>
+export type SetupProfileForm = z.input<typeof setupProfileFormSchema>
+export type SetupProfileRequest = z.output<typeof setupProfileRequestSchema>
+export type SetupProfileResponse = z.infer<typeof setupProfileResponseSchema>
 export type SetupOverviewResponse = z.infer<typeof setupOverviewResponseSchema>
