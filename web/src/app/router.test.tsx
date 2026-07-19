@@ -61,6 +61,7 @@ function mockBackend(currentUser: AuthMeResponse | null) {
           { key: 'STATION', status: 'LOCKED' },
           { key: 'REVIEW', status: 'LOCKED' },
         ],
+        profile: null,
       })
     }
     return new Response(null, { status: 404 })
