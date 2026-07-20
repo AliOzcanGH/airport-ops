@@ -7,6 +7,9 @@ import com.aliozcan.airportops.iam_service.auth.session.MfaChallengeLockedExcept
 import com.aliozcan.airportops.iam_service.auth.session.MfaCodeInvalidException;
 import com.aliozcan.airportops.iam_service.auth.session.MfaConfigurationException;
 import com.aliozcan.airportops.iam_service.auth.session.SessionExpiredException;
+import com.aliozcan.airportops.iam_service.app.setup.SetupAlreadyCompletedException;
+import com.aliozcan.airportops.iam_service.app.setup.SetupProfileIncompleteException;
+import com.aliozcan.airportops.iam_service.app.setup.SetupProfileRequiredException;
 import com.aliozcan.airportops.iam_service.platform.invitation.InvitationAlreadyUsedException;
 import com.aliozcan.airportops.iam_service.platform.invitation.InvitationExpiredException;
 import com.aliozcan.airportops.iam_service.platform.invitation.InvitationNotFoundException;
@@ -57,6 +60,12 @@ public class AuthExceptionHandler {
             "MFA is temporarily unavailable";
     private static final String TENANT_NOT_FOUND_MESSAGE =
             "Tenant organization not found";
+    private static final String SETUP_PROFILE_REQUIRED_MESSAGE =
+            "Setup profile must be saved before completion";
+    private static final String SETUP_PROFILE_INCOMPLETE_MESSAGE =
+            "Setup profile is missing required fields";
+    private static final String SETUP_ALREADY_COMPLETED_MESSAGE =
+            "Tenant setup has already been completed";
 
     @ExceptionHandler(InvalidLoginException.class)
     public ResponseEntity<ErrorResponse> handleInvalidLogin(
@@ -256,6 +265,39 @@ public class AuthExceptionHandler {
                 HttpStatus.NOT_FOUND,
                 "TENANT_NOT_FOUND",
                 TENANT_NOT_FOUND_MESSAGE,
+                request);
+    }
+
+    @ExceptionHandler(SetupProfileRequiredException.class)
+    public ResponseEntity<ErrorResponse> handleSetupProfileRequired(
+            SetupProfileRequiredException exception,
+            HttpServletRequest request) {
+        return errorResponse(
+                HttpStatus.CONFLICT,
+                "SETUP_PROFILE_REQUIRED",
+                SETUP_PROFILE_REQUIRED_MESSAGE,
+                request);
+    }
+
+    @ExceptionHandler(SetupProfileIncompleteException.class)
+    public ResponseEntity<ErrorResponse> handleSetupProfileIncomplete(
+            SetupProfileIncompleteException exception,
+            HttpServletRequest request) {
+        return errorResponse(
+                HttpStatus.CONFLICT,
+                "SETUP_PROFILE_INCOMPLETE",
+                SETUP_PROFILE_INCOMPLETE_MESSAGE,
+                request);
+    }
+
+    @ExceptionHandler(SetupAlreadyCompletedException.class)
+    public ResponseEntity<ErrorResponse> handleSetupAlreadyCompleted(
+            SetupAlreadyCompletedException exception,
+            HttpServletRequest request) {
+        return errorResponse(
+                HttpStatus.CONFLICT,
+                "SETUP_ALREADY_COMPLETED",
+                SETUP_ALREADY_COMPLETED_MESSAGE,
                 request);
     }
 
