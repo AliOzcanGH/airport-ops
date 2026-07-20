@@ -63,6 +63,15 @@ public class OrganizationEntity {
         );
     }
 
+    public void activate(Instant now) {
+        if (status != OrganizationStatus.ONBOARDING_INCOMPLETE) {
+            throw new IllegalStateException(
+                    "Only an onboarding organization can be activated");
+        }
+        status = OrganizationStatus.ACTIVE;
+        updatedAt = now;
+    }
+
     public UUID getId() {
         return id;
     }
