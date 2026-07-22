@@ -1,7 +1,9 @@
 import { apiClient } from '@/shared/api/apiClient'
 import {
+  setupCompletionResponseSchema,
   setupOverviewResponseSchema,
   setupProfileResponseSchema,
+  type SetupCompletionResponse,
   type SetupOverviewResponse,
   type SetupProfileRequest,
   type SetupProfileResponse,
@@ -19,6 +21,12 @@ export const setupApi = {
       method: 'PUT',
       body: request,
       schema: setupProfileResponseSchema,
+    })
+  },
+
+  completeSetup(): Promise<SetupCompletionResponse> {
+    return apiClient.post('/app/setup/complete', {
+      schema: setupCompletionResponseSchema,
     })
   },
 }

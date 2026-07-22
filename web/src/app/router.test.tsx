@@ -132,6 +132,19 @@ describe('authenticated application routes', () => {
     expect(screen.getByText('AIRLINE_ADMIN')).toBeInTheDocument()
   })
 
+  it('keeps the tenant dashboard locked while onboarding is incomplete', async () => {
+    mockBackend(tenantUser)
+    renderRoute('/app/dashboard')
+
+    expect(
+      await screen.findByRole('heading', {
+        name: 'Example Airlines kurulumu',
+        level: 1,
+      }),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Tenant dashboard')).not.toBeInTheDocument()
+  })
+
   it('defaults dual-workspace users to the platform', async () => {
     mockBackend(dualWorkspaceUser)
     renderRoute('/')
