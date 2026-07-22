@@ -53,18 +53,40 @@ function backendError() {
   )
 }
 
+type CompletionConflict =
+  | 'SETUP_PROFILE_REQUIRED'
+  | 'SETUP_PROFILE_INCOMPLETE'
+  | 'SETUP_ALREADY_COMPLETED'
+
+function completionError(errorCode: CompletionConflict) {
+  return Response.json(
+    {
+      timestamp: '2026-07-20T12:00:00Z',
+      status: 409,
+      error: 'CONFLICT',
+      errorCode,
+      message: 'Setup completion conflict.',
+      path: '/app/setup/complete',
+    },
+    { status: 409 },
+  )
+}
+
 function renderSetupPage({
   profile = null,
   saveFails = false,
+  completionConflict,
 }: {
   profile?: SetupProfileResponse | null
   saveFails?: boolean
+  completionConflict?: CompletionConflict
 } = {}) {
   let storedProfile = profile
+  let currentUser = englishTenantUser
   let overviewCalls = 0
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input)
-    if (url.endsWith('/auth/me')) return Response.json(englishTenantUser)
+    if (url.endsWith('/auth/me')) return Response.json(currentUser)
     if (url.endsWith('/auth/session/csrf')) {
       return Response.json({
         headerName: 'X-XSRF-TOKEN',
@@ -77,7 +99,7 @@ function renderSetupPage({
       return Response.json({
         organizationId: englishTenantUser.tenantContext?.organizationId,
         organizationName: englishTenantUser.tenantContext?.organizationName,
-        organizationStatus: 'ONBOARDING_INCOMPLETE',
+        organizationStatus: currentUser.tenantContext?.organizationStatus,
         preferredLanguage: 'EN',
         steps: [
           { key: 'PROFILE', status: 'NOT_STARTED' },
@@ -91,6 +113,32 @@ function renderSetupPage({
       if (saveFails) return backendError()
       storedProfile = canonicalProfile
       return Response.json(canonicalProfile)
+    }
+    if (url.endsWith('/app/setup/complete') && init?.method === 'POST') {
+      if (completionConflict) {
+        if (completionConflict === 'SETUP_ALREADY_COMPLETED') {
+          currentUser = {
+            ...englishTenantUser,
+            tenantContext: {
+              ...englishTenantUser.tenantContext!,
+              organizationStatus: 'ACTIVE',
+            },
+          }
+        }
+        return completionError(completionConflict)
+      }
+      currentUser = {
+        ...englishTenantUser,
+        tenantContext: {
+          ...englishTenantUser.tenantContext!,
+          organizationStatus: 'ACTIVE',
+        },
+      }
+      return Response.json({
+        organizationId: currentUser.tenantContext!.organizationId,
+        organizationStatus: 'ACTIVE',
+        completedAt: '2026-07-20T12:00:00Z',
+      })
     }
     return new Response(null, { status: 404 })
   })
@@ -124,6 +172,8 @@ describe('AppSetupPage', () => {
     expect(await screen.findByLabelText('Display name')).toHaveValue('')
     expect(screen.getByLabelText(/IATA code/)).toHaveValue('')
     expect(screen.getByLabelText(/Operations contact email/)).toHaveValue('')
+    expect(screen.getByRole('button', { name: 'Complete setup' })).toBeDisabled()
+    expect(screen.getByText(/Save the display name, country code/)).toBeVisible()
   })
 
   it('prefills the form from an existing backend profile', async () => {
@@ -138,6 +188,84 @@ describe('AppSetupPage', () => {
     expect(screen.getByLabelText(/Operations contact email/)).toHaveValue(
       'ops@example.com',
     )
+    expect(screen.getByRole('button', { name: 'Complete setup' })).toBeEnabled()
+  })
+
+  it('does not treat unsaved required form values as a complete profile', async () => {
+    const user = userEvent.setup()
+    renderSetupPage()
+
+    await user.type(await screen.findByLabelText('Display name'), 'Unsaved Airline')
+    await user.type(screen.getByLabelText(/Country code/), 'TR')
+    await user.type(screen.getByLabelText(/Timezone/), 'Europe/Istanbul')
+    await user.type(
+      screen.getByLabelText(/Operations contact email/),
+      'ops@example.com',
+    )
+
+    expect(screen.getByRole('button', { name: 'Complete setup' })).toBeDisabled()
+  })
+
+  it('posts completion without a body or client-supplied organization context and opens the dashboard', async () => {
+    const user = userEvent.setup()
+    const { fetchMock, getOverviewCalls } = renderSetupPage({
+      profile: existingProfile,
+    })
+
+    await user.click(await screen.findByRole('button', { name: 'Complete setup' }))
+
+    expect(
+      await screen.findByRole('heading', { name: 'Example Airlines', level: 1 }),
+    ).toBeInTheDocument()
+    const completionCall = fetchMock.mock.calls.find(([url]) =>
+      String(url).endsWith('/app/setup/complete'),
+    )
+    expect(completionCall).toBeDefined()
+    expect(completionCall?.[1]?.method).toBe('POST')
+    expect(completionCall?.[1]?.body).toBeUndefined()
+    expect(String(completionCall?.[0])).not.toContain('organizationId')
+
+    const authMeCalls = fetchMock.mock.calls.filter(([url]) =>
+      String(url).endsWith('/auth/me'),
+    )
+    expect(authMeCalls.length).toBeGreaterThanOrEqual(2)
+    expect(getOverviewCalls()).toBeGreaterThanOrEqual(2)
+  })
+
+  it.each([
+    [
+      'SETUP_PROFILE_REQUIRED' as const,
+      'Save the required setup profile fields before completing setup.',
+    ],
+    [
+      'SETUP_PROFILE_INCOMPLETE' as const,
+      'The saved profile is incomplete. Review the required fields and save it again.',
+    ],
+  ])('keeps setup open and shows a safe message for %s', async (errorCode, message) => {
+    const user = userEvent.setup()
+    renderSetupPage({ profile: existingProfile, completionConflict: errorCode })
+
+    await user.click(await screen.findByRole('button', { name: 'Complete setup' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(message)
+    expect(screen.getByRole('button', { name: 'Complete setup' })).toBeInTheDocument()
+    expect(
+      screen.queryByRole('heading', { name: 'Example Airlines', level: 1 }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('treats SETUP_ALREADY_COMPLETED as success and opens the dashboard', async () => {
+    const user = userEvent.setup()
+    renderSetupPage({
+      profile: existingProfile,
+      completionConflict: 'SETUP_ALREADY_COMPLETED',
+    })
+
+    await user.click(await screen.findByRole('button', { name: 'Complete setup' }))
+
+    expect(
+      await screen.findByRole('heading', { name: 'Example Airlines', level: 1 }),
+    ).toBeInTheDocument()
   })
 
   it('shows client validation when display name is blank', async () => {
@@ -192,7 +320,7 @@ describe('AppSetupPage', () => {
     )
     await user.click(screen.getByRole('button', { name: 'Save setup profile' }))
 
-    expect(await screen.findByRole('status')).toHaveTextContent('Setup profile saved.')
+    expect(await screen.findByText('Setup profile saved.')).toBeInTheDocument()
     const profileCall = fetchMock.mock.calls.find(([url]) =>
       String(url).endsWith('/app/setup/profile'),
     )

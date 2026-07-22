@@ -301,6 +301,12 @@ export const setupOverviewResponseSchema = z.object({
   profile: setupProfileResponseSchema.nullable(),
 })
 
+export const setupCompletionResponseSchema = z.object({
+  organizationId: z.uuid(),
+  organizationStatus: z.literal('ACTIVE'),
+  completedAt: z.iso.datetime(),
+})
+
 export type HealthResponse = z.infer<typeof healthResponseSchema>
 export type BackendErrorResponse = z.infer<typeof backendErrorResponseSchema>
 export type CsrfMetadata = z.infer<typeof csrfMetadataSchema>
@@ -357,3 +363,6 @@ export type SetupProfileForm = z.input<typeof setupProfileFormSchema>
 export type SetupProfileRequest = z.output<typeof setupProfileRequestSchema>
 export type SetupProfileResponse = z.infer<typeof setupProfileResponseSchema>
 export type SetupOverviewResponse = z.infer<typeof setupOverviewResponseSchema>
+export type SetupCompletionResponse = z.infer<
+  typeof setupCompletionResponseSchema
+>
