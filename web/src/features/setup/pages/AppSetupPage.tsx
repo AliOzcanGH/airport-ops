@@ -6,8 +6,10 @@ import {
   type HTMLInputTypeAttribute,
 } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CheckCircle2, Circle, LockKeyhole, Save } from 'lucide-react'
+import { CheckCircle2, Circle, LockKeyhole, Rocket, Save } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { useNavigate } from 'react-router'
+import { authMeQueryOptions } from '@/features/auth/api/authQueries'
 import { setupApi } from '@/features/setup/api/setupApi'
 import { setupOverviewQueryOptions } from '@/features/setup/api/setupQueries'
 import { ApiError } from '@/shared/api/ApiError'
@@ -59,6 +61,7 @@ function toFormValues(profile: SetupProfileResponse | null): SetupProfileForm {
 export function AppSetupPage() {
   const { t } = useTranslation()
   const overview = useQuery(setupOverviewQueryOptions)
+  const [profileUnsaved, setProfileUnsaved] = useState(false)
 
   if (overview.isPending) {
     return (
@@ -121,7 +124,12 @@ export function AppSetupPage() {
         </div>
       </section>
 
-      <SetupProfileForm initialProfile={data.profile} />
+      <SetupProfileForm
+        initialProfile={data.profile}
+        onUnsavedChange={setProfileUnsaved}
+      />
+
+      <SetupCompletionPanel profile={data.profile} profileUnsaved={profileUnsaved} />
 
       <section
         aria-labelledby="setup-steps-heading"
@@ -167,10 +175,147 @@ export function AppSetupPage() {
   )
 }
 
-function SetupProfileForm({ initialProfile }: { initialProfile: SetupProfileResponse | null }) {
+function SetupCompletionPanel({
+  profile,
+  profileUnsaved,
+}: {
+  profile: SetupProfileResponse | null
+  profileUnsaved: boolean
+}) {
+  const { t } = useTranslation()
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const [completionSucceeded, setCompletionSucceeded] = useState(false)
+  const profileComplete = Boolean(
+    profile &&
+      [
+        profile.displayName,
+        profile.countryCode,
+        profile.timezone,
+        profile.operationsContactEmail,
+      ].every((value) => value?.trim()),
+  )
+
+  const refreshContextAndOpenDashboard = async () => {
+    setCompletionSucceeded(true)
+    queryClient.setQueryData<SetupOverviewResponse>(
+      queryKeys.app.setupOverview,
+      (current) =>
+        current ? { ...current, organizationStatus: 'ACTIVE' } : current,
+    )
+    await queryClient.invalidateQueries({
+      queryKey: queryKeys.app.setupOverview,
+    })
+    await queryClient.invalidateQueries({
+      queryKey: queryKeys.auth.me,
+      refetchType: 'none',
+    })
+    await queryClient.fetchQuery(authMeQueryOptions)
+    navigate('/app/dashboard', { replace: true })
+  }
+
+  const completeSetup = useMutation({
+    mutationFn: setupApi.completeSetup,
+    onSuccess: refreshContextAndOpenDashboard,
+    onError: async (error) => {
+      if (error instanceof ApiError && error.errorCode === 'SETUP_ALREADY_COMPLETED') {
+        await refreshContextAndOpenDashboard()
+        return
+      }
+      if (
+        error instanceof ApiError &&
+        (error.errorCode === 'SETUP_PROFILE_REQUIRED' ||
+          error.errorCode === 'SETUP_PROFILE_INCOMPLETE')
+      ) {
+        await queryClient.invalidateQueries({
+          queryKey: queryKeys.app.setupOverview,
+        })
+      }
+    },
+  })
+
+  const completionError = (() => {
+    const error = completeSetup.error
+    if (!(error instanceof ApiError)) return t('setup.completion.genericError')
+    if (error.errorCode === 'SETUP_PROFILE_REQUIRED') {
+      return t('setup.completion.profileRequiredError')
+    }
+    if (error.errorCode === 'SETUP_PROFILE_INCOMPLETE') {
+      return t('setup.completion.profileIncompleteError')
+    }
+    return t('setup.completion.genericError')
+  })()
+  const showError =
+    completeSetup.isError &&
+    !(completeSetup.error instanceof ApiError &&
+      completeSetup.error.errorCode === 'SETUP_ALREADY_COMPLETED')
+
+  return (
+    <section className="space-y-4 rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+      <div>
+        <h2 className="text-base font-semibold text-slate-950">
+          {t('setup.completion.title')}
+        </h2>
+        <p className="mt-1 text-sm leading-6 text-slate-600">
+          {t('setup.completion.description')}
+        </p>
+      </div>
+
+      {!profileComplete ? (
+        <div
+          role="status"
+          className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900"
+        >
+          {t('setup.completion.incompleteWarning')}
+        </div>
+      ) : null}
+
+      {showError ? (
+        <div
+          role="alert"
+          className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800"
+        >
+          {completionError}
+        </div>
+      ) : null}
+
+      {completionSucceeded ? (
+        <div
+          role="status"
+          className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800"
+        >
+          {t('setup.completion.success')}
+        </div>
+      ) : null}
+
+      <button
+        type="button"
+        disabled={!profileComplete || profileUnsaved || completeSetup.isPending}
+        onClick={() => completeSetup.mutate()}
+        className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-teal-700 px-4 text-sm font-semibold text-white shadow-sm hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        <Rocket aria-hidden="true" size={17} />
+        {completeSetup.isPending
+          ? t('setup.completion.loading')
+          : t('setup.completion.button')}
+      </button>
+    </section>
+  )
+}
+
+function SetupProfileForm({
+  initialProfile,
+  onUnsavedChange,
+}: {
+  initialProfile: SetupProfileResponse | null
+  onUnsavedChange: (unsaved: boolean) => void
+}) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [values, setValues] = useState<SetupProfileForm>(() =>
+    toFormValues(initialProfile),
+  )
+  const [savedValues, setSavedValues] = useState<SetupProfileForm>(() =>
     toFormValues(initialProfile),
   )
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
@@ -182,6 +327,7 @@ function SetupProfileForm({ initialProfile }: { initialProfile: SetupProfileResp
     if (version !== loadedVersion.current) {
       loadedVersion.current = version
       setValues(toFormValues(initialProfile))
+      setSavedValues(toFormValues(initialProfile))
       setFieldErrors({})
       setSaved(false)
     }
@@ -192,6 +338,7 @@ function SetupProfileForm({ initialProfile }: { initialProfile: SetupProfileResp
     onSuccess: (profile) => {
       loadedVersion.current = profile.updatedAt
       setValues(toFormValues(profile))
+      setSavedValues(toFormValues(profile))
       setFieldErrors({})
       setSaved(true)
       queryClient.setQueryData<SetupOverviewResponse>(
@@ -201,6 +348,13 @@ function SetupProfileForm({ initialProfile }: { initialProfile: SetupProfileResp
       void queryClient.invalidateQueries({ queryKey: queryKeys.app.setupOverview })
     },
   })
+
+  const isDirty =
+    JSON.stringify(values) !== JSON.stringify(savedValues)
+
+  useEffect(() => {
+    onUnsavedChange(isDirty || saveProfile.isPending)
+  }, [isDirty, saveProfile.isPending, onUnsavedChange])
 
   const updateField = (field: ProfileField, value: string) => {
     setValues((current) => ({ ...current, [field]: value }))
