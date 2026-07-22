@@ -60,6 +60,22 @@ void i18n.use(initReactI18next).init({
             success: 'Setup profile saved.',
             genericError: 'Setup profile could not be saved. Try again shortly.',
           },
+          completion: {
+            title: 'Complete setup',
+            description:
+              'Finish onboarding to unlock the main airline dashboard.',
+            incompleteWarning:
+              'Save the display name, country code, timezone, and operations contact email before completing setup.',
+            button: 'Complete setup',
+            loading: 'Completing setup...',
+            success: 'Setup completed. Opening the dashboard...',
+            profileRequiredError:
+              'Save the required setup profile fields before completing setup.',
+            profileIncompleteError:
+              'The saved profile is incomplete. Review the required fields and save it again.',
+            genericError:
+              'Setup could not be completed. Try again shortly.',
+          },
           validation: {
             displayNameMin: 'Display name must be at least 2 characters.',
             displayNameMax: 'Display name must be at most 160 characters.',
@@ -147,6 +163,22 @@ void i18n.use(initReactI18next).init({
             success: 'Kurulum profili kaydedildi.',
             genericError:
               'Kurulum profili kaydedilemedi. K\u0131sa s\u00fcre sonra tekrar deneyin.',
+          },
+          completion: {
+            title: 'Kurulumu tamamla',
+            description:
+              'Ana havayolu panelini kullan\u0131ma a\u00e7mak i\u00e7in onboarding s\u00fcrecini tamamlay\u0131n.',
+            incompleteWarning:
+              'Kurulumu tamamlamadan \u00f6nce g\u00f6r\u00fcnen ad, \u00fclke kodu, saat dilimi ve operasyon ileti\u015fim e-postas\u0131n\u0131 kaydedin.',
+            button: 'Kurulumu tamamla',
+            loading: 'Kurulum tamamlan\u0131yor...',
+            success: 'Kurulum tamamland\u0131. Panele y\u00f6nlendiriliyorsunuz...',
+            profileRequiredError:
+              'Kurulumu tamamlamadan \u00f6nce zorunlu profil alanlar\u0131n\u0131 kaydedin.',
+            profileIncompleteError:
+              'Kay\u0131tl\u0131 profil eksik. Zorunlu alanlar\u0131 kontrol edip tekrar kaydedin.',
+            genericError:
+              'Kurulum tamamlanamad\u0131. K\u0131sa s\u00fcre sonra tekrar deneyin.',
           },
           validation: {
             displayNameMin: 'G\u00f6r\u00fcnen ad en az 2 karakter olmal\u0131d\u0131r.',
