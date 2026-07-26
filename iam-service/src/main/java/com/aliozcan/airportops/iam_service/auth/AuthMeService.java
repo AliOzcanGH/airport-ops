@@ -10,6 +10,7 @@ import com.aliozcan.airportops.iam_service.repository.TenantAuthorizationReposit
 import com.aliozcan.airportops.iam_service.repository.UserRepository;
 import com.aliozcan.airportops.iam_service.repository.projection.PlatformAuthorizationRow;
 import com.aliozcan.airportops.iam_service.repository.projection.TenantAuthorizationRow;
+import com.aliozcan.airportops.iam_service.tenant.AmbiguousTenantContextException;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -100,8 +101,7 @@ public class AuthMeService {
         SortedSet<String> permissions = new TreeSet<>();
         for (TenantAuthorizationRow row : rows) {
             if (!first.getOrganizationId().equals(row.getOrganizationId())) {
-                throw new IllegalStateException(
-                        "Active IAM user has multiple tenant organizations");
+                throw new AmbiguousTenantContextException();
             }
             if (row.getRoleCode() != null) {
                 roles.add(row.getRoleCode());
