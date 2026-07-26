@@ -74,8 +74,7 @@ public class TenantContextResolver {
         SortedSet<String> permissions = new TreeSet<>();
         for (TenantAuthorizationRow row : rows) {
             if (!first.getOrganizationId().equals(row.getOrganizationId())) {
-                throw new IllegalStateException(
-                        "Active IAM user has multiple tenant organizations");
+                throw new AmbiguousTenantContextException();
             }
             if (row.getRoleCode() != null) {
                 roles.add(row.getRoleCode());
