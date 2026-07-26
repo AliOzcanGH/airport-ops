@@ -64,6 +64,12 @@ function mockBackend(currentUser: AuthMeResponse | null) {
         profile: null,
       })
     }
+    if (url.endsWith('/app/dashboard/overview')) {
+      if (!currentUser?.tenantContext) {
+        return new Response(null, { status: 403 })
+      }
+      return Response.json(currentUser.tenantContext)
+    }
     return new Response(null, { status: 404 })
   })
   vi.stubGlobal('fetch', fetchMock)
