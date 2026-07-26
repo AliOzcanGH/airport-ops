@@ -307,6 +307,8 @@ export const setupCompletionResponseSchema = z.object({
   completedAt: z.iso.datetime(),
 })
 
+export const dashboardOverviewResponseSchema = tenantContextSchema
+
 export type HealthResponse = z.infer<typeof healthResponseSchema>
 export type BackendErrorResponse = z.infer<typeof backendErrorResponseSchema>
 export type CsrfMetadata = z.infer<typeof csrfMetadataSchema>
@@ -365,4 +367,7 @@ export type SetupProfileResponse = z.infer<typeof setupProfileResponseSchema>
 export type SetupOverviewResponse = z.infer<typeof setupOverviewResponseSchema>
 export type SetupCompletionResponse = z.infer<
   typeof setupCompletionResponseSchema
+>
+export type DashboardOverviewResponse = z.infer<
+  typeof dashboardOverviewResponseSchema
 >

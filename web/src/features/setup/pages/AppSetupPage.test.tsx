@@ -140,6 +140,12 @@ function renderSetupPage({
         completedAt: '2026-07-20T12:00:00Z',
       })
     }
+    if (url.endsWith('/app/dashboard/overview')) {
+      if (!currentUser.tenantContext) {
+        return new Response(null, { status: 403 })
+      }
+      return Response.json(currentUser.tenantContext)
+    }
     return new Response(null, { status: 404 })
   })
   vi.stubGlobal('fetch', fetchMock)

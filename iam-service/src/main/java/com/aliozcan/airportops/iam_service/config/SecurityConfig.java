@@ -72,6 +72,8 @@ public class SecurityConfig {
                                 .authenticated()
                         .requestMatchers(HttpMethod.POST, "/app/setup/complete")
                                 .authenticated()
+                        .requestMatchers(HttpMethod.GET, "/app/dashboard/overview")
+                                .authenticated()
                         .requestMatchers(HttpMethod.GET, "/platform/authorization/probe")
                                 .authenticated()
                         .requestMatchers(HttpMethod.GET, "/platform/tenants")
