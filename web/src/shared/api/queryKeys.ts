@@ -12,5 +12,6 @@ export const queryKeys = {
   },
   app: {
     setupOverview: ['app', 'setup', 'overview'] as const,
+    dashboardOverview: ['app', 'dashboard', 'overview'] as const,
   },
 }
