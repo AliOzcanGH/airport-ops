@@ -67,7 +67,7 @@ class TenantContextResolverTests {
         when(repository.findTenantAuthorizationByUserId(userId)).thenReturn(rows);
 
         assertThatThrownBy(() -> resolver.resolveActiveTenantContext(userId))
-                .isInstanceOf(IllegalStateException.class);
+                .isInstanceOf(AmbiguousTenantContextException.class);
     }
 
     @Test
