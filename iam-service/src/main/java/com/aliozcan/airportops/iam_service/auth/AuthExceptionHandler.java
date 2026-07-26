@@ -18,6 +18,7 @@ import com.aliozcan.airportops.iam_service.platform.invitation.OrganizationAlrea
 import com.aliozcan.airportops.iam_service.platform.invitation.PendingInvitationExistsException;
 import com.aliozcan.airportops.iam_service.platform.invitation.ProvisioningInvariantException;
 import com.aliozcan.airportops.iam_service.platform.tenant.PlatformTenantNotFoundException;
+import com.aliozcan.airportops.iam_service.tenant.AmbiguousTenantContextException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -66,6 +67,8 @@ public class AuthExceptionHandler {
             "Setup profile is missing required fields";
     private static final String SETUP_ALREADY_COMPLETED_MESSAGE =
             "Tenant setup has already been completed";
+    private static final String AMBIGUOUS_TENANT_CONTEXT_MESSAGE =
+            "Active IAM user has multiple tenant organizations";
 
     @ExceptionHandler(InvalidLoginException.class)
     public ResponseEntity<ErrorResponse> handleInvalidLogin(
@@ -298,6 +301,17 @@ public class AuthExceptionHandler {
                 HttpStatus.CONFLICT,
                 "SETUP_ALREADY_COMPLETED",
                 SETUP_ALREADY_COMPLETED_MESSAGE,
+                request);
+    }
+
+    @ExceptionHandler(AmbiguousTenantContextException.class)
+    public ResponseEntity<ErrorResponse> handleAmbiguousTenantContext(
+            AmbiguousTenantContextException exception,
+            HttpServletRequest request) {
+        return errorResponse(
+                HttpStatus.CONFLICT,
+                "AMBIGUOUS_TENANT_CONTEXT",
+                AMBIGUOUS_TENANT_CONTEXT_MESSAGE,
                 request);
     }
 
