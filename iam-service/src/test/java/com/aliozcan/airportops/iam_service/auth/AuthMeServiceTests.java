@@ -7,6 +7,8 @@ import com.aliozcan.airportops.iam_service.domain.model.enums.UserStatus;
 import com.aliozcan.airportops.iam_service.repository.PlatformAuthorizationRepository;
 import com.aliozcan.airportops.iam_service.repository.TenantAuthorizationRepository;
 import com.aliozcan.airportops.iam_service.repository.UserRepository;
+import com.aliozcan.airportops.iam_service.repository.projection.TenantAuthorizationRow;
+import com.aliozcan.airportops.iam_service.tenant.AmbiguousTenantContextException;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.oauth2.jwt.Jwt;
 
@@ -17,6 +19,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -64,6 +67,42 @@ class AuthMeServiceTests {
         assertThat(response.availableWorkspaces()).isEmpty();
         assertThat(response.defaultWorkspace()).isNull();
         assertThat(response.tenantContext()).isNull();
+    }
+
+    @Test
+    void throwsAmbiguousTenantContextWhenUserHasRowsAcrossMultipleOrganizations() {
+        UserRepository userRepository = mock(UserRepository.class);
+        PlatformAuthorizationRepository authorizationRepository =
+                mock(PlatformAuthorizationRepository.class);
+        TenantAuthorizationRepository tenantAuthorizationRepository =
+                mock(TenantAuthorizationRepository.class);
+        KeycloakRealmRoleExtractor roleExtractor = new KeycloakRealmRoleExtractor();
+        UserEntity user = mock(UserEntity.class);
+        UUID userId = UUID.randomUUID();
+        Jwt jwt = jwt(Map.of("email", "platform.admin@demo.com"));
+
+        TenantAuthorizationRow rowA = mock(TenantAuthorizationRow.class);
+        when(rowA.getOrganizationId()).thenReturn(UUID.randomUUID());
+        TenantAuthorizationRow rowB = mock(TenantAuthorizationRow.class);
+        when(rowB.getOrganizationId()).thenReturn(UUID.randomUUID());
+        List<TenantAuthorizationRow> ambiguousRows = List.of(rowA, rowB);
+
+        when(user.getId()).thenReturn(userId);
+        when(userRepository.findActiveByEmail("platform.admin@demo.com"))
+                .thenReturn(Optional.of(user));
+        when(authorizationRepository.findPlatformAuthorizationByUserId(userId))
+                .thenReturn(List.of());
+        when(tenantAuthorizationRepository.findTenantAuthorizationByUserId(userId))
+                .thenReturn(ambiguousRows);
+
+        AuthMeService service = new AuthMeService(
+                userRepository,
+                authorizationRepository,
+                tenantAuthorizationRepository,
+                roleExtractor);
+
+        assertThatThrownBy(() -> service.getCurrentUser(jwt))
+                .isInstanceOf(AmbiguousTenantContextException.class);
     }
 
     @Test
