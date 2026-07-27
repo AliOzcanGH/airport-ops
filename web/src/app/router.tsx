@@ -2,6 +2,7 @@ import { createBrowserRouter, type RouteObject } from 'react-router'
 import {
   HomeRedirect,
   RequireAuthentication,
+  RequireTenantRole,
   RequireTenantSetupComplete,
   RequireTenantSetupPage,
   RequireWorkspace,
@@ -12,6 +13,7 @@ import { PlatformDashboardPage } from '@/features/dashboard/pages/PlatformDashbo
 import { TenantDashboardPage } from '@/features/dashboard/pages/TenantDashboardPage'
 import { InvitationAcceptPage } from '@/features/invitations/pages/InvitationAcceptPage'
 import { PlatformInvitationsPage } from '@/features/invitations/pages/PlatformInvitationsPage'
+import { TenantMembersPage } from '@/features/members/pages/TenantMembersPage'
 import { NotFoundPage } from '@/features/not-found/NotFoundPage'
 import { PlatformTenantDetailPage } from '@/features/tenants/pages/PlatformTenantDetailPage'
 import { PlatformTenantDirectoryPage } from '@/features/tenants/pages/PlatformTenantDirectoryPage'
@@ -60,6 +62,12 @@ export const routeDefinitions: RouteObject[] = [
             element: <RequireTenantSetupComplete />,
             children: [
               { path: '/app/dashboard', element: <TenantDashboardPage /> },
+              {
+                element: <RequireTenantRole role="AIRLINE_ADMIN" />,
+                children: [
+                  { path: '/app/members', element: <TenantMembersPage /> },
+                ],
+              },
             ],
           },
         ],
