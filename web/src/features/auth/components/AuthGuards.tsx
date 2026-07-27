@@ -72,6 +72,28 @@ export function RequireTenantSetupComplete() {
   return <Outlet />
 }
 
+export function RequireTenantRole({ role }: { role: string }) {
+  const query = useCurrentUser()
+  const state = queryState(query)
+  if (state) return state
+  if (!query.data) return <Navigate to="/login" replace />
+  if (!hasWorkspace(query.data, 'TENANT')) {
+    return (
+      <Navigate
+        to={workspaceFallbackPath(query.data, 'TENANT')}
+        replace
+      />
+    )
+  }
+  if (requiresTenantSetup(query.data)) {
+    return <Navigate to="/app/setup" replace />
+  }
+  if (!query.data.tenantContext?.roles.includes(role)) {
+    return <Navigate to="/app/dashboard" replace />
+  }
+  return <Outlet />
+}
+
 export function RequireTenantSetupPage() {
   const query = useCurrentUser()
   const state = queryState(query)
