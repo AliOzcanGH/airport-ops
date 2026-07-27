@@ -2,6 +2,7 @@ package com.aliozcan.airportops.iam_service.domain.model;
 
 import com.aliozcan.airportops.iam_service.domain.model.enums.InvitationEmailDeliveryStatus;
 import com.aliozcan.airportops.iam_service.domain.model.enums.InvitationStatus;
+import com.aliozcan.airportops.iam_service.domain.model.enums.InvitationType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -60,6 +61,16 @@ public class InvitationEntity {
     @Column(name = "email_failure_reason", length = 500)
     private String emailFailureReason;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "invitation_type", nullable = false, length = 30)
+    private InvitationType invitationType;
+
+    @Column(name = "intended_role", length = 30)
+    private String intendedRole;
+
+    @Column(name = "invitee_full_name", length = 150)
+    private String inviteeFullName;
+
     protected InvitationEntity() {
     }
 
@@ -77,7 +88,10 @@ public class InvitationEntity {
             Instant acceptedAt,
             InvitationEmailDeliveryStatus emailDeliveryStatus,
             Instant emailSentAt,
-            String emailFailureReason) {
+            String emailFailureReason,
+            InvitationType invitationType,
+            String intendedRole,
+            String inviteeFullName) {
         this.id = id;
         this.companyName = companyName;
         this.adminEmail = adminEmail;
@@ -92,6 +106,9 @@ public class InvitationEntity {
         this.emailDeliveryStatus = emailDeliveryStatus;
         this.emailSentAt = emailSentAt;
         this.emailFailureReason = emailFailureReason;
+        this.invitationType = invitationType;
+        this.intendedRole = intendedRole;
+        this.inviteeFullName = inviteeFullName;
     }
 
     public static InvitationEntity pending(
@@ -115,7 +132,41 @@ public class InvitationEntity {
                 null,
                 InvitationEmailDeliveryStatus.NOT_SENT,
                 null,
+                null,
+                InvitationType.PLATFORM,
+                null,
                 null
+        );
+    }
+
+    public static InvitationEntity pendingForOrganization(
+            UUID organizationId,
+            String organizationName,
+            String adminEmail,
+            String inviteeFullName,
+            String intendedRole,
+            String tokenHash,
+            UUID createdByUserId,
+            Instant createdAt,
+            Instant expiresAt) {
+        return new InvitationEntity(
+                UUID.randomUUID(),
+                organizationName,
+                adminEmail,
+                tokenHash,
+                InvitationStatus.PENDING,
+                createdByUserId,
+                expiresAt,
+                createdAt,
+                createdAt,
+                organizationId,
+                null,
+                InvitationEmailDeliveryStatus.NOT_SENT,
+                null,
+                null,
+                InvitationType.ORGANIZATION,
+                intendedRole,
+                inviteeFullName
         );
     }
 
@@ -197,5 +248,17 @@ public class InvitationEntity {
 
     public String getEmailFailureReason() {
         return emailFailureReason;
+    }
+
+    public InvitationType getInvitationType() {
+        return invitationType;
+    }
+
+    public String getIntendedRole() {
+        return intendedRole;
+    }
+
+    public String getInviteeFullName() {
+        return inviteeFullName;
     }
 }
