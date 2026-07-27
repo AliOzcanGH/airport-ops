@@ -7,6 +7,7 @@ import com.aliozcan.airportops.iam_service.domain.model.OrganizationMemberEntity
 import com.aliozcan.airportops.iam_service.domain.model.RoleEntity;
 import com.aliozcan.airportops.iam_service.domain.model.UserEntity;
 import com.aliozcan.airportops.iam_service.domain.model.enums.InvitationStatus;
+import com.aliozcan.airportops.iam_service.domain.model.enums.InvitationType;
 import com.aliozcan.airportops.iam_service.domain.model.enums.PreferredLanguage;
 import com.aliozcan.airportops.iam_service.domain.model.enums.RoleScope;
 import com.aliozcan.airportops.iam_service.repository.InvitationRepository;
@@ -71,6 +72,18 @@ public class InvitationAcceptanceTransactionService {
         if (userRepository.existsNonDeletedByEmail(invitation.getAdminEmail())) {
             throw new IamUserAlreadyExistsException();
         }
+
+        if (invitation.getInvitationType() == InvitationType.ORGANIZATION) {
+            return provisionOrganizationMember(invitation, fullName, preferredLanguage, now);
+        }
+        return provisionPlatformTenant(invitation, fullName, preferredLanguage, now);
+    }
+
+    private IamProvisioningResult provisionPlatformTenant(
+            InvitationEntity invitation,
+            String fullName,
+            String preferredLanguage,
+            Instant now) {
         if (organizationRepository.existsNonDeletedByName(
                 invitation.getCompanyName())) {
             throw new OrganizationAlreadyExistsException();
@@ -121,6 +134,58 @@ public class InvitationAcceptanceTransactionService {
             }
             if (violatesConstraint(exception, ORGANIZATION_NAME_CONSTRAINT)) {
                 throw new OrganizationAlreadyExistsException();
+            }
+            throw exception;
+        }
+    }
+
+    private IamProvisioningResult provisionOrganizationMember(
+            InvitationEntity invitation,
+            String fullName,
+            String preferredLanguage,
+            Instant now) {
+        OrganizationEntity organization = organizationRepository
+                .findById(invitation.getOrganizationId())
+                .orElseThrow(() -> new ProvisioningInvariantException(
+                        "Organization referenced by invitation no longer exists"));
+
+        RoleEntity intendedRole = roleRepository.findByCodeAndScope(
+                        invitation.getIntendedRole(),
+                        RoleScope.ORGANIZATION)
+                .orElseThrow(() -> new ProvisioningInvariantException(
+                        "Intended organization role is missing"));
+
+        try {
+            UserEntity user = UserEntity.provisioningKeycloakUser(
+                    invitation.getAdminEmail(),
+                    fullName,
+                    PreferredLanguage.valueOf(preferredLanguage),
+                    now);
+            userRepository.saveAndFlush(user);
+
+            OrganizationMemberEntity member = OrganizationMemberEntity.active(
+                    organization.getId(),
+                    user.getId(),
+                    now);
+            organizationMemberRepository.saveAndFlush(member);
+
+            MemberRoleEntity memberRole = MemberRoleEntity.assign(
+                    member.getId(),
+                    intendedRole.getId());
+            memberRoleRepository.saveAndFlush(memberRole);
+
+            invitation.accept(organization.getId(), now);
+            invitationRepository.saveAndFlush(invitation);
+
+            return new IamProvisioningResult(
+                    user.getId(),
+                    user.getEmail(),
+                    organization.getName(),
+                    organization.getStatus()
+            );
+        } catch (DataIntegrityViolationException exception) {
+            if (violatesConstraint(exception, USER_EMAIL_CONSTRAINT)) {
+                throw new IamUserAlreadyExistsException();
             }
             throw exception;
         }
