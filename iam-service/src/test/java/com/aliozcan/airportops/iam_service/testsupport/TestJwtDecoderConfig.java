@@ -45,6 +45,9 @@ public class TestJwtDecoderConfig {
     public static final String W6_ACTIVE_TOKEN = "w6-active-token";
     public static final String W6_INACTIVE_ORG_TOKEN = "w6-inactive-org-token";
     public static final String W6_INACTIVE_MEMBER_TOKEN = "w6-inactive-member-token";
+    public static final String W7_ADMIN_TOKEN = "w7-admin-token";
+    public static final String W7_OPS_TOKEN = "w7-ops-token";
+    public static final String W7_OTHER_ADMIN_TOKEN = "w7-other-admin-token";
     public static final String ISSUER = "http://127.0.0.1:8085/realms/airport-ops";
     public static final String EMAIL = "platform.admin@demo.com";
     public static final String PERMISSIONLESS_EMAIL = "k4.permissionless@integration.test";
@@ -90,6 +93,9 @@ public class TestJwtDecoderConfig {
                         jwt(token, "inactive-org@w6.test", true);
                 case W6_INACTIVE_MEMBER_TOKEN ->
                         jwt(token, "inactive-member@w6.test", true);
+                case W7_ADMIN_TOKEN -> jwt(token, "admin@w7.test", true);
+                case W7_OPS_TOKEN -> jwt(token, "ops@w7.test", true);
+                case W7_OTHER_ADMIN_TOKEN -> jwt(token, "other-admin@w7.test", true);
                 default -> throw new BadJwtException("Invalid test token");
             };
         };
