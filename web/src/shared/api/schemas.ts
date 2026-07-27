@@ -309,6 +309,36 @@ export const setupCompletionResponseSchema = z.object({
 
 export const dashboardOverviewResponseSchema = tenantContextSchema
 
+export const organizationMemberRoleSchema = z.enum(['OPS_USER', 'VIEWER'])
+
+export const inviteOrganizationMemberRequestSchema = z.object({
+  email: z
+    .string()
+    .trim()
+    .min(1, 'Email is required')
+    .pipe(z.email()),
+  fullName: z
+    .string()
+    .trim()
+    .min(1, 'Full name is required')
+    .max(150, 'Full name is too long'),
+  intendedRole: organizationMemberRoleSchema,
+})
+
+export const organizationMemberInvitationResponseSchema = z.object({
+  id: z.uuid(),
+  email: z.email(),
+  fullName: z.string().nullable(),
+  intendedRole: organizationMemberRoleSchema,
+  status: invitationStatusSchema,
+  expiresAt: z.string().min(1),
+  emailDeliveryStatus: invitationEmailDeliveryStatusSchema,
+  emailSentAt: z.string().nullable(),
+  devAcceptLink: z.string().nullable(),
+})
+
+export const organizationMembersResponseSchema = z.array(platformTenantMemberSchema)
+
 export type HealthResponse = z.infer<typeof healthResponseSchema>
 export type BackendErrorResponse = z.infer<typeof backendErrorResponseSchema>
 export type CsrfMetadata = z.infer<typeof csrfMetadataSchema>
@@ -370,4 +400,16 @@ export type SetupCompletionResponse = z.infer<
 >
 export type DashboardOverviewResponse = z.infer<
   typeof dashboardOverviewResponseSchema
+>
+export type OrganizationMemberRole = z.infer<
+  typeof organizationMemberRoleSchema
+>
+export type InviteOrganizationMemberRequest = z.infer<
+  typeof inviteOrganizationMemberRequestSchema
+>
+export type OrganizationMemberInvitationResponse = z.infer<
+  typeof organizationMemberInvitationResponseSchema
+>
+export type OrganizationMembersResponse = z.infer<
+  typeof organizationMembersResponseSchema
 >
