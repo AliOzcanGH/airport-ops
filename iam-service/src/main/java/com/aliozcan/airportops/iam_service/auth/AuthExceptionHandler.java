@@ -19,6 +19,8 @@ import com.aliozcan.airportops.iam_service.platform.invitation.PendingInvitation
 import com.aliozcan.airportops.iam_service.platform.invitation.ProvisioningInvariantException;
 import com.aliozcan.airportops.iam_service.platform.tenant.PlatformTenantNotFoundException;
 import com.aliozcan.airportops.iam_service.tenant.AmbiguousTenantContextException;
+import com.aliozcan.airportops.iam_service.tenant.member.OrganizationMemberAlreadyExistsException;
+import com.aliozcan.airportops.iam_service.tenant.member.TenantMismatchException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -69,6 +71,10 @@ public class AuthExceptionHandler {
             "Tenant setup has already been completed";
     private static final String AMBIGUOUS_TENANT_CONTEXT_MESSAGE =
             "Active IAM user has multiple tenant organizations";
+    private static final String TENANT_MISMATCH_MESSAGE =
+            "Requested organization does not match the authenticated tenant";
+    private static final String DUPLICATE_RESOURCE_MESSAGE =
+            "This email is already an active member of the organization";
 
     @ExceptionHandler(InvalidLoginException.class)
     public ResponseEntity<ErrorResponse> handleInvalidLogin(
@@ -312,6 +318,28 @@ public class AuthExceptionHandler {
                 HttpStatus.CONFLICT,
                 "AMBIGUOUS_TENANT_CONTEXT",
                 AMBIGUOUS_TENANT_CONTEXT_MESSAGE,
+                request);
+    }
+
+    @ExceptionHandler(TenantMismatchException.class)
+    public ResponseEntity<ErrorResponse> handleTenantMismatch(
+            TenantMismatchException exception,
+            HttpServletRequest request) {
+        return errorResponse(
+                HttpStatus.FORBIDDEN,
+                "TENANT_MISMATCH",
+                TENANT_MISMATCH_MESSAGE,
+                request);
+    }
+
+    @ExceptionHandler(OrganizationMemberAlreadyExistsException.class)
+    public ResponseEntity<ErrorResponse> handleOrganizationMemberAlreadyExists(
+            OrganizationMemberAlreadyExistsException exception,
+            HttpServletRequest request) {
+        return errorResponse(
+                HttpStatus.CONFLICT,
+                "DUPLICATE_RESOURCE",
+                DUPLICATE_RESOURCE_MESSAGE,
                 request);
     }
 

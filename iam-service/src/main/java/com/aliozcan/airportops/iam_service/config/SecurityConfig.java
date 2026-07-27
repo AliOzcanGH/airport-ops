@@ -82,6 +82,10 @@ public class SecurityConfig {
                                 .authenticated()
                         .requestMatchers(HttpMethod.POST, "/platform/invitations")
                                 .authenticated()
+                        .requestMatchers(HttpMethod.POST, "/organizations/*/invitations")
+                                .authenticated()
+                        .requestMatchers(HttpMethod.GET, "/organizations/*/members")
+                                .authenticated()
                         .anyRequest().denyAll()
                 )
                 .exceptionHandling(exceptions -> exceptions
