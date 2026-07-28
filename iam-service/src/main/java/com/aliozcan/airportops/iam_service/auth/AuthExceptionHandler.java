@@ -1,6 +1,7 @@
 package com.aliozcan.airportops.iam_service.auth;
 
 import com.aliozcan.airportops.iam_service.auth.dto.ErrorResponse;
+import com.aliozcan.airportops.iam_service.auth.token.NoWorkspaceContextException;
 import com.aliozcan.airportops.iam_service.auth.session.AuthProviderUnavailableException;
 import com.aliozcan.airportops.iam_service.auth.session.MfaChallengeExpiredException;
 import com.aliozcan.airportops.iam_service.auth.session.MfaChallengeLockedException;
@@ -75,6 +76,8 @@ public class AuthExceptionHandler {
             "Requested organization does not match the authenticated tenant";
     private static final String DUPLICATE_RESOURCE_MESSAGE =
             "This email is already an active member of the organization";
+    private static final String NO_WORKSPACE_CONTEXT_MESSAGE =
+            "Authenticated user has no platform or tenant workspace context";
 
     @ExceptionHandler(InvalidLoginException.class)
     public ResponseEntity<ErrorResponse> handleInvalidLogin(
@@ -340,6 +343,17 @@ public class AuthExceptionHandler {
                 HttpStatus.CONFLICT,
                 "DUPLICATE_RESOURCE",
                 DUPLICATE_RESOURCE_MESSAGE,
+                request);
+    }
+
+    @ExceptionHandler(NoWorkspaceContextException.class)
+    public ResponseEntity<ErrorResponse> handleNoWorkspaceContext(
+            NoWorkspaceContextException exception,
+            HttpServletRequest request) {
+        return errorResponse(
+                HttpStatus.FORBIDDEN,
+                "NO_WORKSPACE_CONTEXT",
+                NO_WORKSPACE_CONTEXT_MESSAGE,
                 request);
     }
 
