@@ -42,6 +42,10 @@ tasks.withType<Test> {
 		"APP_TOTP_ENCRYPTION_KEY",
 		"MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
 	)
+	systemProperty(
+		"IAM_TOKEN_PRIVATE_KEY",
+		"REDACTED_ROTATED_RSA_PRIVATE_KEY="
+	)
 }
 
 tasks.named<JavaCompile>("compileTestJava") {
