@@ -50,6 +50,7 @@ public class TestJwtDecoderConfig {
     public static final String W7_OTHER_ADMIN_TOKEN = "w7-other-admin-token";
     public static final String W8A_TENANT_TOKEN = "w8a-tenant-token";
     public static final String W8A_NO_WORKSPACE_TOKEN = "w8a-no-workspace-token";
+    public static final String W8B_TENANT_TOKEN = "w8b-tenant-token";
     public static final String ISSUER = "http://127.0.0.1:8085/realms/airport-ops";
     public static final String EMAIL = "platform.admin@demo.com";
     public static final String PERMISSIONLESS_EMAIL = "k4.permissionless@integration.test";
@@ -100,6 +101,7 @@ public class TestJwtDecoderConfig {
                 case W7_OTHER_ADMIN_TOKEN -> jwt(token, "other-admin@w7.test", true);
                 case W8A_TENANT_TOKEN -> jwt(token, "tenant@w8a.test", true);
                 case W8A_NO_WORKSPACE_TOKEN -> jwt(token, "none@w8a.test", true);
+                case W8B_TENANT_TOKEN -> jwt(token, "tenant@w8b.test", true);
                 default -> throw new BadJwtException("Invalid test token");
             };
         };
