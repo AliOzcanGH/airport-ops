@@ -2,10 +2,14 @@ package com.aliozcan.airportops.iam_service.config;
 
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.jwk.RSAKey;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.security.KeyFactory;
 import java.security.interfaces.RSAPrivateCrtKey;
 import java.security.spec.PKCS8EncodedKeySpec;
@@ -17,11 +21,20 @@ import java.util.Base64;
 public class IamTokenConfig {
 
     @Bean
-    public RSAKey iamSigningKey(IamTokenProperties properties) {
-        String encodedKey = properties.privateKey();
-        if (encodedKey == null || encodedKey.isBlank()) {
+    public RSAKey iamSigningKey(
+            IamTokenProperties properties,
+            @Value("${app.iam-token.private-key-path}") String privateKeyPath) {
+        String encodedKey;
+        try {
+            encodedKey = Files.readString(Path.of(privateKeyPath)).trim();
+        } catch (IOException exception) {
             throw new IllegalStateException(
-                    "app.iam-token.private-key must be configured");
+                    "Failed to read app.iam-token.private-key-path: " + privateKeyPath,
+                    exception);
+        }
+        if (encodedKey.isBlank()) {
+            throw new IllegalStateException(
+                    "app.iam-token.private-key-path file must not be empty: " + privateKeyPath);
         }
         String keyId = properties.keyId();
         if (keyId == null || keyId.isBlank()) {
@@ -46,7 +59,8 @@ public class IamTokenConfig {
                     .build();
         } catch (IllegalArgumentException | java.security.GeneralSecurityException exception) {
             throw new IllegalStateException(
-                    "app.iam-token.private-key must be a base64-encoded PKCS8 RSA private key",
+                    "app.iam-token.private-key-path file must contain a base64-encoded "
+                            + "PKCS8 RSA private key: " + privateKeyPath,
                     exception);
         }
     }
