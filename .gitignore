@@ -47,6 +47,7 @@ nbdist/
 **/application-local.properties
 **/application-local.yml
 **/application-local.yaml
+**/iam-token-private-key.txt
 
 # Operating system files
 .DS_Store
