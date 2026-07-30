@@ -58,5 +58,8 @@ Desktop.ini
 .agents/
 .codex/
 .github/modernize/
+AGENTS.md
+CLAUDE.md
+docs/adr/phases/
 
 # Gradle wrapper scripts and gradle-wrapper.jar are intentionally not ignored.
