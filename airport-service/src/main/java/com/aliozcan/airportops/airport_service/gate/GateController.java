@@ -38,6 +38,16 @@ public class GateController {
         return ResponseEntity.ok(gateService.list(orgId, stationId, principal(authentication)));
     }
 
+    @GetMapping("/{gateId}")
+    @PreAuthorize("hasAuthority('gate:read')")
+    public ResponseEntity<GateResponse> getOne(
+            @PathVariable UUID orgId,
+            @PathVariable UUID stationId,
+            @PathVariable UUID gateId,
+            Authentication authentication) {
+        return ResponseEntity.ok(gateService.getOne(orgId, stationId, gateId, principal(authentication)));
+    }
+
     @PostMapping
     @PreAuthorize("hasAuthority('gate:update')")
     public ResponseEntity<GateResponse> create(
