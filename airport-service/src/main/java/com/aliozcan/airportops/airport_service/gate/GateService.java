@@ -31,6 +31,30 @@ public class GateService {
                 .toList();
     }
 
+    public GateResponse getOneByOrganization(UUID pathOrganizationId, UUID gateId, IamPrincipal principal) {
+        if (principal.organizationId() == null
+                || !principal.organizationId().equals(pathOrganizationId)) {
+            throw new TenantMismatchException();
+        }
+
+        GateEntity gate = gateRepository.findById(gateId).orElseThrow(GateNotFoundException::new);
+        StationEntity station = stationRepository.findById(gate.getStationId())
+                .orElseThrow(GateNotFoundException::new);
+        if (!station.getOrganizationId().equals(pathOrganizationId)) {
+            throw new GateNotFoundException();
+        }
+        return toResponse(gate);
+    }
+
+    public GateResponse getOne(UUID pathOrganizationId, UUID stationId, UUID gateId, IamPrincipal principal) {
+        UUID station = verifyStationOwnership(pathOrganizationId, stationId, principal);
+
+        GateEntity gate = gateRepository.findById(gateId)
+                .filter(candidate -> candidate.getStationId().equals(station))
+                .orElseThrow(GateNotFoundException::new);
+        return toResponse(gate);
+    }
+
     public GateResponse create(
             UUID pathOrganizationId, UUID stationId, IamPrincipal principal, CreateGateRequest request) {
         UUID station = verifyStationOwnership(pathOrganizationId, stationId, principal);
