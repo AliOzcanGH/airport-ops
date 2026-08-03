@@ -157,6 +157,82 @@ class GateControllerIntegrationTests {
     }
 
     @Test
+    void getsSingleGateByIdForAuthorizedReader() {
+        ResponseEntity<GateResponse> created = createGate(
+                TestIamJwtDecoderConfig.ORG_A, STATION_A, TestIamJwtDecoderConfig.ADMIN_TOKEN,
+                new CreateGateRequest("A1", "International"), GateResponse.class);
+        UUID gateId = created.getBody().id();
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(TestIamJwtDecoderConfig.VIEWER_TOKEN);
+        ResponseEntity<GateResponse> response = restTemplate.exchange(
+                "/organizations/" + TestIamJwtDecoderConfig.ORG_A + "/stations/" + STATION_A
+                        + "/gates/" + gateId,
+                HttpMethod.GET,
+                new HttpEntity<>(headers),
+                GateResponse.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody().id()).isEqualTo(gateId);
+        assertThat(response.getBody().status()).isEqualTo("ACTIVE");
+    }
+
+    @Test
+    void getSingleGateRejectsStationOwnershipMismatch() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(TestIamJwtDecoderConfig.ADMIN_TOKEN);
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/organizations/" + TestIamJwtDecoderConfig.ORG_A + "/stations/" + STATION_B
+                        + "/gates/" + UUID.randomUUID(),
+                HttpMethod.GET,
+                new HttpEntity<>(headers),
+                String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(response.getBody()).contains("STATION_NOT_FOUND");
+    }
+
+    @Test
+    void getsGateByFlatOrganizationLookup() {
+        ResponseEntity<GateResponse> created = createGate(
+                TestIamJwtDecoderConfig.ORG_A, STATION_A, TestIamJwtDecoderConfig.ADMIN_TOKEN,
+                new CreateGateRequest("A1", "International"), GateResponse.class);
+        UUID gateId = created.getBody().id();
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(TestIamJwtDecoderConfig.VIEWER_TOKEN);
+        ResponseEntity<GateResponse> response = restTemplate.exchange(
+                "/organizations/" + TestIamJwtDecoderConfig.ORG_A + "/gates/" + gateId,
+                HttpMethod.GET,
+                new HttpEntity<>(headers),
+                GateResponse.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody().id()).isEqualTo(gateId);
+        assertThat(response.getBody().stationId()).isEqualTo(STATION_A);
+        assertThat(response.getBody().status()).isEqualTo("ACTIVE");
+    }
+
+    @Test
+    void flatGateLookupRejectsGateFromAnotherOrganization() {
+        ResponseEntity<GateResponse> created = createGate(
+                TestIamJwtDecoderConfig.ORG_B, STATION_B, TestIamJwtDecoderConfig.OTHER_ORG_ADMIN_TOKEN,
+                new CreateGateRequest("B1", "Domestic"), GateResponse.class);
+        UUID gateId = created.getBody().id();
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(TestIamJwtDecoderConfig.ADMIN_TOKEN);
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/organizations/" + TestIamJwtDecoderConfig.ORG_A + "/gates/" + gateId,
+                HttpMethod.GET,
+                new HttpEntity<>(headers),
+                String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(response.getBody()).contains("GATE_NOT_FOUND");
+    }
+
+    @Test
     void rejectsRequestWithoutBearerToken() {
         ResponseEntity<String> response = restTemplate.postForEntity(
                 "/organizations/" + TestIamJwtDecoderConfig.ORG_A + "/stations/" + STATION_A + "/gates",

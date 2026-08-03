@@ -32,7 +32,9 @@ import java.util.TreeSet;
 public class IamTokenService {
 
     private static final String ISSUER = "airport-ops-iam";
-    private static final List<String> AUDIENCE = List.of("airport-service");
+    // Token Relay (W10): flight-service forwards this same token unchanged to
+    // airport-service, so it must carry both services' audiences.
+    private static final List<String> AUDIENCE = List.of("airport-service", "flight-service");
 
     private final UserRepository userRepository;
     private final PlatformAuthorizationRepository platformAuthorizationRepository;
