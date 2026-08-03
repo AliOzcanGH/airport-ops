@@ -90,6 +90,12 @@ public class SecurityConfig {
                                 .authenticated()
                         .requestMatchers(HttpMethod.POST, "/app/stations")
                                 .authenticated()
+                        .requestMatchers(HttpMethod.GET, "/app/stations/*/gates")
+                                .authenticated()
+                        .requestMatchers(HttpMethod.POST, "/app/stations/*/gates")
+                                .authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/app/stations/*/gates/*/status")
+                                .authenticated()
                         .anyRequest().denyAll()
                 )
                 .exceptionHandling(exceptions -> exceptions
