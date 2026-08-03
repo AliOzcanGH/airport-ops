@@ -1,5 +1,8 @@
 package com.aliozcan.airportops.airport_service.error;
 
+import com.aliozcan.airportops.airport_service.gate.GateCodeConflictException;
+import com.aliozcan.airportops.airport_service.gate.GateNotFoundException;
+import com.aliozcan.airportops.airport_service.gate.StationNotFoundException;
 import com.aliozcan.airportops.airport_service.station.TenantMismatchException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
@@ -21,6 +24,36 @@ public class ApiExceptionHandler {
                 HttpStatus.FORBIDDEN,
                 "TENANT_MISMATCH",
                 "Requested organization does not match the authenticated tenant",
+                request);
+    }
+
+    @ExceptionHandler(StationNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleStationNotFound(
+            StationNotFoundException exception, HttpServletRequest request) {
+        return errorResponse(
+                HttpStatus.NOT_FOUND,
+                "STATION_NOT_FOUND",
+                "Station was not found for the authenticated tenant",
+                request);
+    }
+
+    @ExceptionHandler(GateNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleGateNotFound(
+            GateNotFoundException exception, HttpServletRequest request) {
+        return errorResponse(
+                HttpStatus.NOT_FOUND,
+                "GATE_NOT_FOUND",
+                "Gate was not found for the requested station",
+                request);
+    }
+
+    @ExceptionHandler(GateCodeConflictException.class)
+    public ResponseEntity<ErrorResponse> handleGateCodeConflict(
+            GateCodeConflictException exception, HttpServletRequest request) {
+        return errorResponse(
+                HttpStatus.CONFLICT,
+                "GATE_CODE_CONFLICT",
+                "A gate with this code already exists for the station",
                 request);
     }
 

@@ -29,6 +29,12 @@ public class SecurityConfig {
                         .requestMatchers("/error").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.POST,
                                 "/organizations/*/stations").authenticated()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET,
+                                "/organizations/*/stations/*/gates").authenticated()
+                        .requestMatchers(org.springframework.http.HttpMethod.POST,
+                                "/organizations/*/stations/*/gates").authenticated()
+                        .requestMatchers(org.springframework.http.HttpMethod.PUT,
+                                "/organizations/*/stations/*/gates/*/status").authenticated()
                         .anyRequest().denyAll())
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .jwt(jwt -> jwt
