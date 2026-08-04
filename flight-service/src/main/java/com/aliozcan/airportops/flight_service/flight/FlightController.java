@@ -2,6 +2,7 @@ package com.aliozcan.airportops.flight_service.flight;
 
 import com.aliozcan.airportops.flight_service.flight.dto.CreateFlightRequest;
 import com.aliozcan.airportops.flight_service.flight.dto.FlightResponse;
+import com.aliozcan.airportops.flight_service.flight.dto.UpdateFlightStatusRequest;
 import com.aliozcan.airportops.flight_service.security.IamPrincipal;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -14,6 +15,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -36,6 +38,24 @@ public class FlightController {
     public ResponseEntity<List<FlightResponse>> list(
             @PathVariable UUID orgId, Authentication authentication) {
         return ResponseEntity.ok(flightService.list(orgId, principal(authentication)));
+    }
+
+    @GetMapping("/{flightId}")
+    @PreAuthorize("hasAuthority('flight:read')")
+    public ResponseEntity<FlightResponse> getOne(
+            @PathVariable UUID orgId, @PathVariable UUID flightId, Authentication authentication) {
+        return ResponseEntity.ok(flightService.getOne(orgId, flightId, principal(authentication)));
+    }
+
+    @PutMapping("/{flightId}/status")
+    @PreAuthorize("hasAuthority('flight:update')")
+    public ResponseEntity<FlightResponse> updateStatus(
+            @PathVariable UUID orgId,
+            @PathVariable UUID flightId,
+            @Valid @RequestBody UpdateFlightStatusRequest request,
+            Authentication authentication) {
+        return ResponseEntity.ok(
+                flightService.updateStatus(orgId, flightId, principal(authentication), request));
     }
 
     @PostMapping
