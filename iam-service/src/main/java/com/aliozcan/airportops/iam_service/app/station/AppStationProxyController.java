@@ -3,6 +3,7 @@ package com.aliozcan.airportops.iam_service.app.station;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -16,6 +17,11 @@ public class AppStationProxyController {
 
     public AppStationProxyController(AppStationProxyService proxyService) {
         this.proxyService = proxyService;
+    }
+
+    @GetMapping
+    public ResponseEntity<String> list(@AuthenticationPrincipal Jwt jwt) {
+        return proxyService.listStations(jwt);
     }
 
     @PostMapping

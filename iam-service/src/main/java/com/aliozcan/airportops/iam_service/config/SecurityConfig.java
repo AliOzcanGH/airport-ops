@@ -88,6 +88,8 @@ public class SecurityConfig {
                                 .authenticated()
                         .requestMatchers(HttpMethod.GET, "/organizations/*/members")
                                 .authenticated()
+                        .requestMatchers(HttpMethod.GET, "/app/stations")
+                                .authenticated()
                         .requestMatchers(HttpMethod.POST, "/app/stations")
                                 .authenticated()
                         .requestMatchers(HttpMethod.GET, "/app/stations/*/gates")

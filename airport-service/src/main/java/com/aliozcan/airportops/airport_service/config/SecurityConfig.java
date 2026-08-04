@@ -30,6 +30,8 @@ public class SecurityConfig {
                         .requestMatchers(org.springframework.http.HttpMethod.POST,
                                 "/organizations/*/stations").authenticated()
                         .requestMatchers(org.springframework.http.HttpMethod.GET,
+                                "/organizations/*/stations").authenticated()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET,
                                 "/organizations/*/stations/*/gates").authenticated()
                         .requestMatchers(org.springframework.http.HttpMethod.GET,
                                 "/organizations/*/stations/*/gates/*").authenticated()
