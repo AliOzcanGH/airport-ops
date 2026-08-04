@@ -34,6 +34,23 @@ public class AppStationProxyService {
         this.airportServiceRestClient = airportServiceRestClient;
     }
 
+    public ResponseEntity<String> listStations(Jwt keycloakJwt) {
+        IamTokenResponse tokenResponse = iamTokenService.issueToken(keycloakJwt);
+        UUID organizationId = organizationIdOf(tokenResponse.iamAccessToken());
+
+        try {
+            return airportServiceRestClient.get()
+                    .uri("/organizations/{orgId}/stations", organizationId)
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenResponse.iamAccessToken())
+                    .retrieve()
+                    .toEntity(String.class);
+        } catch (RestClientResponseException exception) {
+            return ResponseEntity.status(exception.getStatusCode())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(exception.getResponseBodyAsString());
+        }
+    }
+
     public ResponseEntity<String> createStation(Jwt keycloakJwt, String requestBody) {
         IamTokenResponse tokenResponse = iamTokenService.issueToken(keycloakJwt);
         UUID organizationId = organizationIdOf(tokenResponse.iamAccessToken());
