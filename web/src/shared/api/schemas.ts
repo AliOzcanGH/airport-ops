@@ -339,6 +339,124 @@ export const organizationMemberInvitationResponseSchema = z.object({
 
 export const organizationMembersResponseSchema = z.array(platformTenantMemberSchema)
 
+export const createStationRequestSchema = z.object({
+  stationName: z
+    .string()
+    .trim()
+    .min(1, 'Station name is required')
+    .max(200, 'Station name is too long'),
+  airportCode: z
+    .string()
+    .trim()
+    .min(1, 'Airport code is required')
+    .max(10, 'Airport code is too long')
+    .transform((value) => value.toUpperCase()),
+  gateCount: z.coerce
+    .number()
+    .int('Gate count must be a whole number')
+    .min(0, 'Gate count cannot be negative'),
+})
+
+export const stationResponseSchema = z.object({
+  id: z.uuid(),
+  organizationId: z.uuid(),
+  stationName: z.string().min(1),
+  airportCode: z.string().min(1),
+  gateCount: z.number().int(),
+  createdAt: z.string().min(1),
+})
+
+export const stationsResponseSchema = z.array(stationResponseSchema)
+
+export const gateStatusSchema = z.enum(['ACTIVE', 'MAINTENANCE', 'CLOSED'])
+
+export const createGateRequestSchema = z.object({
+  code: z
+    .string()
+    .trim()
+    .min(1, 'Gate code is required')
+    .max(10, 'Gate code is too long'),
+  terminal: z
+    .string()
+    .trim()
+    .max(50, 'Terminal is too long')
+    .optional()
+    .transform((value) => value || null),
+})
+
+export const updateGateStatusRequestSchema = z.object({
+  status: gateStatusSchema,
+})
+
+export const gateResponseSchema = z.object({
+  id: z.uuid(),
+  stationId: z.uuid(),
+  code: z.string().min(1),
+  terminal: z.string().nullable(),
+  status: gateStatusSchema,
+  createdAt: z.string().min(1),
+  updatedAt: z.string().min(1),
+})
+
+export const gatesResponseSchema = z.array(gateResponseSchema)
+
+export const flightStatusSchema = z.enum([
+  'SCHEDULED',
+  'BOARDING',
+  'DEPARTED',
+  'DELAYED',
+  'CANCELLED',
+])
+
+export const createFlightRequestSchema = z.object({
+  flightNumber: z
+    .string()
+    .trim()
+    .min(1, 'Flight number is required')
+    .max(10, 'Flight number is too long'),
+  origin: z
+    .string()
+    .trim()
+    .min(1, 'Origin is required')
+    .max(10, 'Origin is too long')
+    .transform((value) => value.toUpperCase()),
+  destination: z
+    .string()
+    .trim()
+    .min(1, 'Destination is required')
+    .max(10, 'Destination is too long')
+    .transform((value) => value.toUpperCase()),
+  scheduledDeparture: z
+    .string()
+    .min(1, 'Scheduled departure is required')
+    .pipe(z.iso.datetime({ offset: true, precision: null })),
+  scheduledArrival: z
+    .string()
+    .min(1, 'Scheduled arrival is required')
+    .pipe(z.iso.datetime({ offset: true, precision: null })),
+  assignedGateId: z.uuid('Select a gate'),
+})
+
+export const updateFlightStatusRequestSchema = z.object({
+  status: flightStatusSchema,
+})
+
+export const flightResponseSchema = z.object({
+  id: z.uuid(),
+  organizationId: z.uuid(),
+  flightNumber: z.string().min(1),
+  origin: z.string().min(1),
+  destination: z.string().min(1),
+  scheduledDeparture: z.string().min(1),
+  scheduledArrival: z.string().min(1),
+  status: flightStatusSchema,
+  assignedGateId: z.uuid().nullable(),
+  createdAt: z.string().min(1),
+  updatedAt: z.string().min(1),
+})
+
+export const flightsResponseSchema = z.array(flightResponseSchema)
+
 export type HealthResponse = z.infer<typeof healthResponseSchema>
 export type BackendErrorResponse = z.infer<typeof backendErrorResponseSchema>
 export type CsrfMetadata = z.infer<typeof csrfMetadataSchema>
@@ -413,3 +531,21 @@ export type OrganizationMemberInvitationResponse = z.infer<
 export type OrganizationMembersResponse = z.infer<
   typeof organizationMembersResponseSchema
 >
+export type CreateStationForm = z.input<typeof createStationRequestSchema>
+export type CreateStationRequest = z.output<typeof createStationRequestSchema>
+export type StationResponse = z.infer<typeof stationResponseSchema>
+export type StationsResponse = z.infer<typeof stationsResponseSchema>
+export type GateStatus = z.infer<typeof gateStatusSchema>
+export type CreateGateForm = z.input<typeof createGateRequestSchema>
+export type CreateGateRequest = z.output<typeof createGateRequestSchema>
+export type UpdateGateStatusRequest = z.infer<typeof updateGateStatusRequestSchema>
+export type GateResponse = z.infer<typeof gateResponseSchema>
+export type GatesResponse = z.infer<typeof gatesResponseSchema>
+export type FlightStatus = z.infer<typeof flightStatusSchema>
+export type CreateFlightForm = z.input<typeof createFlightRequestSchema>
+export type CreateFlightRequest = z.output<typeof createFlightRequestSchema>
+export type UpdateFlightStatusRequest = z.infer<
+  typeof updateFlightStatusRequestSchema
+>
+export type FlightResponse = z.infer<typeof flightResponseSchema>
+export type FlightsResponse = z.infer<typeof flightsResponseSchema>

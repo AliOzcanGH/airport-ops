@@ -39,6 +39,37 @@ class StationControllerIntegrationTests {
     }
 
     @Test
+    void listsStationsForAuthorizedReaderOrderedByName() {
+        createStation(TestIamJwtDecoderConfig.ORG_A, TestIamJwtDecoderConfig.ADMIN_TOKEN,
+                new CreateStationRequest("Zulu Station", "ZZZ", 1), StationResponse.class);
+        createStation(TestIamJwtDecoderConfig.ORG_A, TestIamJwtDecoderConfig.ADMIN_TOKEN,
+                new CreateStationRequest("Alpha Station", "AAA", 2), StationResponse.class);
+
+        ResponseEntity<StationResponse[]> response = restTemplate.exchange(
+                "/organizations/" + TestIamJwtDecoderConfig.ORG_A + "/stations",
+                HttpMethod.GET,
+                new HttpEntity<>(bearerHeaders(TestIamJwtDecoderConfig.VIEWER_TOKEN)),
+                StationResponse[].class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().length).isGreaterThanOrEqualTo(2);
+        assertThat(response.getBody()[0].stationName()).isLessThanOrEqualTo(response.getBody()[1].stationName());
+    }
+
+    @Test
+    void rejectsStationListPathOrganizationMismatch() {
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/organizations/" + TestIamJwtDecoderConfig.ORG_A + "/stations",
+                HttpMethod.GET,
+                new HttpEntity<>(bearerHeaders(TestIamJwtDecoderConfig.OTHER_ORG_ADMIN_TOKEN)),
+                String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(response.getBody()).contains("TENANT_MISMATCH");
+    }
+
+    @Test
     void rejectsUserWithoutStationCreatePermission() {
         CreateStationRequest request = new CreateStationRequest("SAW Station", "SAW", 8);
 
@@ -80,6 +111,12 @@ class StationControllerIntegrationTests {
                 request, String.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
+    private HttpHeaders bearerHeaders(String token) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(token);
+        return headers;
     }
 
     private <T> ResponseEntity<T> createStation(

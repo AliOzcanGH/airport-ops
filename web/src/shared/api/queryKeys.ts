@@ -15,5 +15,9 @@ export const queryKeys = {
     dashboardOverview: ['app', 'dashboard', 'overview'] as const,
     members: (organizationId: string) =>
       ['app', 'members', organizationId] as const,
+    stations: ['app', 'stations'] as const,
+    stationGates: (stationId: string) =>
+      ['app', 'stations', stationId, 'gates'] as const,
+    flights: ['app', 'flights'] as const,
   },
 }
