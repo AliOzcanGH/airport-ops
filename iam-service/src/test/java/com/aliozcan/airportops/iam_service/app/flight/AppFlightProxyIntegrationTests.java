@@ -147,6 +147,76 @@ class AppFlightProxyIntegrationTests {
     }
 
     @Test
+    void forwardsUpdateFlightStatusWithIamJwtAndReturnsFlightServiceResponse() {
+        UUID organizationId = organizationId();
+        UUID flightId = UUID.randomUUID();
+
+        String flightServiceResponseBody =
+                "{\"id\":\"" + flightId + "\",\"organizationId\":\"" + organizationId
+                        + "\",\"flightNumber\":\"PC123\",\"status\":\"BOARDING\"}";
+
+        mockFlightServiceServer.expect(requestTo(
+                        "http://mock-flight-service/organizations/" + organizationId
+                                + "/flights/" + flightId + "/status"))
+                .andExpect(method(HttpMethod.PUT))
+                .andExpect(header(HttpHeaders.AUTHORIZATION, org.hamcrest.Matchers.startsWith("Bearer ")))
+                .andRespond(withStatus(HttpStatus.OK)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body(flightServiceResponseBody));
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(TestJwtDecoderConfig.W10_TENANT_TOKEN);
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/app/flights/" + flightId + "/status",
+                HttpMethod.PUT,
+                new HttpEntity<>("{\"status\":\"BOARDING\"}", headers),
+                String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isEqualTo(flightServiceResponseBody);
+        mockFlightServiceServer.verify();
+    }
+
+    @Test
+    void relaysFlightServiceStatusUpdateErrorResponseAsIs() {
+        UUID organizationId = organizationId();
+        UUID flightId = UUID.randomUUID();
+
+        String errorBody = "{\"errorCode\":\"INVALID_STATUS_TRANSITION\"}";
+        mockFlightServiceServer.expect(requestTo(
+                        "http://mock-flight-service/organizations/" + organizationId
+                                + "/flights/" + flightId + "/status"))
+                .andExpect(method(HttpMethod.PUT))
+                .andRespond(withStatus(HttpStatus.CONFLICT)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body(errorBody));
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(TestJwtDecoderConfig.W10_TENANT_TOKEN);
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/app/flights/" + flightId + "/status",
+                HttpMethod.PUT,
+                new HttpEntity<>("{\"status\":\"DEPARTED\"}", headers),
+                String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(response.getBody()).contains("INVALID_STATUS_TRANSITION");
+    }
+
+    @Test
+    void rejectsStatusUpdateWithoutBearerToken() {
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/app/flights/" + UUID.randomUUID() + "/status",
+                HttpMethod.PUT,
+                new HttpEntity<>("{\"status\":\"BOARDING\"}"),
+                String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
+    @Test
     void rejectsRequestWithoutBearerToken() {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);

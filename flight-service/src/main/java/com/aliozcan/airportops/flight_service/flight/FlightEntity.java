@@ -115,4 +115,9 @@ public class FlightEntity {
     public Instant getUpdatedAt() {
         return updatedAt;
     }
+
+    public void updateStatus(String newStatus) {
+        this.status = newStatus;
+        this.updatedAt = Instant.now();
+    }
 }
