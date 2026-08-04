@@ -23,14 +23,25 @@ import static org.assertj.core.api.Assertions.assertThat;
 @Import(TestJwtDecoderConfig.class)
 @SpringBootTest
 @Sql(statements = {
-        "DELETE FROM iam.mfa_login_challenges",
-        "DELETE FROM iam.user_totp_credentials"
+        "DELETE FROM iam.mfa_login_challenges WHERE user_id = "
+                + "(SELECT id FROM iam.users WHERE lower(email) = 'mfa.repository.test@demo.com')",
+        "DELETE FROM iam.user_totp_credentials WHERE user_id = "
+                + "(SELECT id FROM iam.users WHERE lower(email) = 'mfa.repository.test@demo.com')",
+        "DELETE FROM iam.users WHERE lower(email) = 'mfa.repository.test@demo.com'",
+        "INSERT INTO iam.users (email, full_name, status, auth_provider) VALUES "
+                + "('mfa.repository.test@demo.com', 'MFA Repository Test User', 'ACTIVE', 'KEYCLOAK')"
 }, executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD)
 @Sql(statements = {
-        "DELETE FROM iam.mfa_login_challenges",
-        "DELETE FROM iam.user_totp_credentials"
+        "DELETE FROM iam.mfa_login_challenges WHERE user_id = "
+                + "(SELECT id FROM iam.users WHERE lower(email) = 'mfa.repository.test@demo.com')",
+        "DELETE FROM iam.user_totp_credentials WHERE user_id = "
+                + "(SELECT id FROM iam.users WHERE lower(email) = 'mfa.repository.test@demo.com')",
+        "DELETE FROM iam.users WHERE lower(email) = 'mfa.repository.test@demo.com'"
 }, executionPhase = Sql.ExecutionPhase.AFTER_TEST_METHOD)
 class MfaRepositoryIntegrationTests {
+
+    // Dedicated fixture user — see SessionAuthIntegrationTests for why this
+    // must never be the shared platform.admin@demo.com seed account.
 
     @Autowired
     private UserTotpCredentialRepository credentialRepository;
@@ -47,7 +58,7 @@ class MfaRepositoryIntegrationTests {
     @Test
     @Transactional
     void persistsEncryptedCredentialAndFindsEnabledCredential() {
-        UUID userId = platformAdminId();
+        UUID userId = testUserId();
         EncryptedValue encryptedSecret = encryptionService.encrypt("PLAINTEXTSECRET");
 
         UserTotpCredentialEntity saved = credentialRepository.saveAndFlush(
@@ -73,7 +84,7 @@ class MfaRepositoryIntegrationTests {
     @Test
     @Transactional
     void persistsEncryptedChallengeAndLoadsItWithPessimisticLock() {
-        UUID userId = platformAdminId();
+        UUID userId = testUserId();
         EncryptedValue accessToken = encryptionService.encrypt("access-token");
         EncryptedValue refreshToken = encryptionService.encrypt("refresh-token");
         Instant now = Instant.parse("2026-07-16T12:00:00Z");
@@ -107,9 +118,9 @@ class MfaRepositoryIntegrationTests {
         assertThat(row.get("refresh_token_ciphertext")).isNotEqualTo("refresh-token");
     }
 
-    private UUID platformAdminId() {
+    private UUID testUserId() {
         return jdbcTemplate.queryForObject(
-                "SELECT id FROM iam.users WHERE lower(email) = 'platform.admin@demo.com'",
+                "SELECT id FROM iam.users WHERE lower(email) = 'mfa.repository.test@demo.com'",
                 UUID.class);
     }
 }
