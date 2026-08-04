@@ -53,6 +53,16 @@ public class AppFlightProxyService {
                 .body(requestBody));
     }
 
+    public ResponseEntity<String> updateFlightStatus(Jwt keycloakJwt, UUID flightId, String requestBody) {
+        String iamAccessToken = issueToken(keycloakJwt);
+        UUID organizationId = organizationIdOf(iamAccessToken);
+        return forward(flightServiceRestClient.put()
+                .uri("/organizations/{orgId}/flights/{flightId}/status", organizationId, flightId)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + iamAccessToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(requestBody));
+    }
+
     private String issueToken(Jwt keycloakJwt) {
         IamTokenResponse tokenResponse = iamTokenService.issueToken(keycloakJwt);
         return tokenResponse.iamAccessToken();
