@@ -217,6 +217,102 @@ class AppFlightProxyIntegrationTests {
     }
 
     @Test
+    void forwardsListTasksWithIamJwtAndReturnsFlightServiceResponse() {
+        UUID organizationId = organizationId();
+        UUID flightId = UUID.randomUUID();
+        String flightServiceResponseBody = "[]";
+
+        mockFlightServiceServer.expect(requestTo(
+                        "http://mock-flight-service/organizations/" + organizationId
+                                + "/flights/" + flightId + "/tasks"))
+                .andExpect(method(HttpMethod.GET))
+                .andExpect(header(HttpHeaders.AUTHORIZATION, org.hamcrest.Matchers.startsWith("Bearer ")))
+                .andRespond(withStatus(HttpStatus.OK)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body(flightServiceResponseBody));
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(TestJwtDecoderConfig.W10_TENANT_TOKEN);
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/app/flights/" + flightId + "/tasks",
+                HttpMethod.GET,
+                new HttpEntity<>(headers),
+                String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isEqualTo(flightServiceResponseBody);
+        mockFlightServiceServer.verify();
+    }
+
+    @Test
+    void forwardsUpdateTaskStatusWithIamJwtAndReturnsFlightServiceResponse() {
+        UUID organizationId = organizationId();
+        UUID flightId = UUID.randomUUID();
+        UUID taskId = UUID.randomUUID();
+
+        String flightServiceResponseBody =
+                "{\"id\":\"" + taskId + "\",\"flightId\":\"" + flightId + "\",\"status\":\"IN_PROGRESS\"}";
+
+        mockFlightServiceServer.expect(requestTo(
+                        "http://mock-flight-service/organizations/" + organizationId
+                                + "/flights/" + flightId + "/tasks/" + taskId + "/status"))
+                .andExpect(method(HttpMethod.PUT))
+                .andExpect(header(HttpHeaders.AUTHORIZATION, org.hamcrest.Matchers.startsWith("Bearer ")))
+                .andRespond(withStatus(HttpStatus.OK)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body(flightServiceResponseBody));
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(TestJwtDecoderConfig.W10_TENANT_TOKEN);
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/app/flights/" + flightId + "/tasks/" + taskId + "/status",
+                HttpMethod.PUT,
+                new HttpEntity<>("{\"status\":\"IN_PROGRESS\"}", headers),
+                String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isEqualTo(flightServiceResponseBody);
+        mockFlightServiceServer.verify();
+    }
+
+    @Test
+    void relaysTaskStatusUpdateErrorResponseAsIs() {
+        UUID organizationId = organizationId();
+        UUID flightId = UUID.randomUUID();
+        UUID taskId = UUID.randomUUID();
+
+        String errorBody = "{\"errorCode\":\"TASK_NOT_FOUND\"}";
+        mockFlightServiceServer.expect(requestTo(
+                        "http://mock-flight-service/organizations/" + organizationId
+                                + "/flights/" + flightId + "/tasks/" + taskId + "/status"))
+                .andExpect(method(HttpMethod.PUT))
+                .andRespond(withStatus(HttpStatus.NOT_FOUND)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body(errorBody));
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(TestJwtDecoderConfig.W10_TENANT_TOKEN);
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/app/flights/" + flightId + "/tasks/" + taskId + "/status",
+                HttpMethod.PUT,
+                new HttpEntity<>("{\"status\":\"IN_PROGRESS\"}", headers),
+                String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(response.getBody()).contains("TASK_NOT_FOUND");
+    }
+
+    @Test
+    void rejectsListTasksWithoutBearerToken() {
+        ResponseEntity<String> response = restTemplate.getForEntity(
+                "/app/flights/" + UUID.randomUUID() + "/tasks", String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
+    @Test
     void rejectsRequestWithoutBearerToken() {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);

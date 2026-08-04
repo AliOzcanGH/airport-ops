@@ -63,6 +63,26 @@ public class AppFlightProxyService {
                 .body(requestBody));
     }
 
+    public ResponseEntity<String> listTasks(Jwt keycloakJwt, UUID flightId) {
+        String iamAccessToken = issueToken(keycloakJwt);
+        UUID organizationId = organizationIdOf(iamAccessToken);
+        return forward(flightServiceRestClient.get()
+                .uri("/organizations/{orgId}/flights/{flightId}/tasks", organizationId, flightId)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + iamAccessToken));
+    }
+
+    public ResponseEntity<String> updateTaskStatus(
+            Jwt keycloakJwt, UUID flightId, UUID taskId, String requestBody) {
+        String iamAccessToken = issueToken(keycloakJwt);
+        UUID organizationId = organizationIdOf(iamAccessToken);
+        return forward(flightServiceRestClient.put()
+                .uri("/organizations/{orgId}/flights/{flightId}/tasks/{taskId}/status",
+                        organizationId, flightId, taskId)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + iamAccessToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(requestBody));
+    }
+
     private String issueToken(Jwt keycloakJwt) {
         IamTokenResponse tokenResponse = iamTokenService.issueToken(keycloakJwt);
         return tokenResponse.iamAccessToken();
