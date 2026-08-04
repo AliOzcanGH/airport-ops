@@ -41,4 +41,19 @@ public class AppFlightProxyController {
             @RequestBody String requestBody) {
         return proxyService.updateFlightStatus(jwt, flightId, requestBody);
     }
+
+    @GetMapping("/{flightId}/tasks")
+    public ResponseEntity<String> listTasks(
+            @AuthenticationPrincipal Jwt jwt, @PathVariable UUID flightId) {
+        return proxyService.listTasks(jwt, flightId);
+    }
+
+    @PutMapping("/{flightId}/tasks/{taskId}/status")
+    public ResponseEntity<String> updateTaskStatus(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable UUID flightId,
+            @PathVariable UUID taskId,
+            @RequestBody String requestBody) {
+        return proxyService.updateTaskStatus(jwt, flightId, taskId, requestBody);
+    }
 }

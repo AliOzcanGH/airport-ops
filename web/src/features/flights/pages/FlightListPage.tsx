@@ -114,7 +114,11 @@ function FlightRow({ flight }: { flight: FlightResponse }) {
 
   return (
     <tr>
-      <td className="px-4 py-3 font-medium text-slate-900">{flight.flightNumber}</td>
+      <td className="px-4 py-3 font-medium text-teal-700">
+        <Link to={`/app/flights/${flight.id}`} className="hover:underline">
+          {flight.flightNumber}
+        </Link>
+      </td>
       <td className="px-4 py-3 text-slate-700">
         {flight.origin} → {flight.destination}
       </td>

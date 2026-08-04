@@ -8,6 +8,8 @@ import com.aliozcan.airportops.flight_service.flight.GateNotFoundException;
 import com.aliozcan.airportops.flight_service.flight.GateVerificationUnavailableException;
 import com.aliozcan.airportops.flight_service.flight.InvalidStatusTransitionException;
 import com.aliozcan.airportops.flight_service.flight.TenantMismatchException;
+import com.aliozcan.airportops.flight_service.task.InvalidTaskStatusTransitionException;
+import com.aliozcan.airportops.flight_service.task.TaskNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -88,6 +90,27 @@ public class ApiExceptionHandler {
                 HttpStatus.CONFLICT,
                 "INVALID_STATUS_TRANSITION",
                 "Cannot transition flight from " + exception.getCurrentStatus()
+                        + " to " + exception.getAttemptedStatus(),
+                request);
+    }
+
+    @ExceptionHandler(TaskNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleTaskNotFound(
+            TaskNotFoundException exception, HttpServletRequest request) {
+        return errorResponse(
+                HttpStatus.NOT_FOUND,
+                "TASK_NOT_FOUND",
+                "Task was not found for this flight",
+                request);
+    }
+
+    @ExceptionHandler(InvalidTaskStatusTransitionException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidTaskStatusTransition(
+            InvalidTaskStatusTransitionException exception, HttpServletRequest request) {
+        return errorResponse(
+                HttpStatus.CONFLICT,
+                "INVALID_STATUS_TRANSITION",
+                "Cannot transition task from " + exception.getCurrentStatus()
                         + " to " + exception.getAttemptedStatus(),
                 request);
     }

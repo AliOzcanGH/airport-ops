@@ -457,6 +457,40 @@ export const flightResponseSchema = z.object({
 
 export const flightsResponseSchema = z.array(flightResponseSchema)
 
+export const taskStatusSchema = z.enum(['OPEN', 'IN_PROGRESS', 'DONE', 'BLOCKED'])
+
+export const taskTypeSchema = z.enum([
+  'CLEANING',
+  'CATERING',
+  'FUELING',
+  'BAGGAGE_LOADING',
+  'BOARDING_PREPARATION',
+  'SECURITY_CHECK',
+])
+
+export const updateTaskStatusRequestSchema = z.object({
+  status: taskStatusSchema,
+  assignedTo: z
+    .string()
+    .trim()
+    .max(150, 'Assigned to is too long')
+    .optional()
+    .transform((value) => value || undefined),
+})
+
+export const taskResponseSchema = z.object({
+  id: z.uuid(),
+  flightId: z.uuid(),
+  taskType: taskTypeSchema,
+  status: taskStatusSchema,
+  assignedTo: z.string().nullable(),
+  dueAt: z.string().nullable(),
+  createdAt: z.string().min(1),
+  updatedAt: z.string().min(1),
+})
+
+export const tasksResponseSchema = z.array(taskResponseSchema)
+
 export type HealthResponse = z.infer<typeof healthResponseSchema>
 export type BackendErrorResponse = z.infer<typeof backendErrorResponseSchema>
 export type CsrfMetadata = z.infer<typeof csrfMetadataSchema>
@@ -549,3 +583,9 @@ export type UpdateFlightStatusRequest = z.infer<
 >
 export type FlightResponse = z.infer<typeof flightResponseSchema>
 export type FlightsResponse = z.infer<typeof flightsResponseSchema>
+export type TaskStatus = z.infer<typeof taskStatusSchema>
+export type TaskType = z.infer<typeof taskTypeSchema>
+export type UpdateTaskStatusForm = z.input<typeof updateTaskStatusRequestSchema>
+export type UpdateTaskStatusRequest = z.output<typeof updateTaskStatusRequestSchema>
+export type TaskResponse = z.infer<typeof taskResponseSchema>
+export type TasksResponse = z.infer<typeof tasksResponseSchema>
