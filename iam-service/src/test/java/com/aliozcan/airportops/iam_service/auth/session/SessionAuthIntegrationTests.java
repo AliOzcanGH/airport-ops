@@ -48,16 +48,29 @@ import static org.mockito.Mockito.when;
 @Import(TestJwtDecoderConfig.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Sql(statements = {
-        "DELETE FROM iam.mfa_login_challenges",
-        "DELETE FROM iam.user_totp_credentials"
+        "DELETE FROM iam.mfa_login_challenges WHERE user_id = "
+                + "(SELECT id FROM iam.users WHERE lower(email) = 'mfa.session.test@demo.com')",
+        "DELETE FROM iam.user_totp_credentials WHERE user_id = "
+                + "(SELECT id FROM iam.users WHERE lower(email) = 'mfa.session.test@demo.com')",
+        "DELETE FROM iam.users WHERE lower(email) = 'mfa.session.test@demo.com'",
+        "INSERT INTO iam.users (email, full_name, status, auth_provider) VALUES "
+                + "('mfa.session.test@demo.com', 'MFA Session Test User', 'ACTIVE', 'KEYCLOAK')"
 }, executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD)
 @Sql(statements = {
-        "DELETE FROM iam.mfa_login_challenges",
-        "DELETE FROM iam.user_totp_credentials"
+        "DELETE FROM iam.mfa_login_challenges WHERE user_id = "
+                + "(SELECT id FROM iam.users WHERE lower(email) = 'mfa.session.test@demo.com')",
+        "DELETE FROM iam.user_totp_credentials WHERE user_id = "
+                + "(SELECT id FROM iam.users WHERE lower(email) = 'mfa.session.test@demo.com')",
+        "DELETE FROM iam.users WHERE lower(email) = 'mfa.session.test@demo.com'"
 }, executionPhase = Sql.ExecutionPhase.AFTER_TEST_METHOD)
 class SessionAuthIntegrationTests {
 
-    private static final String EMAIL = "platform.admin@demo.com";
+    // Dedicated fixture user — must never be the real seeded demo account
+    // (platform.admin@demo.com), because this class deletes and rewrites its
+    // TOTP/MFA-challenge rows on every run. Using the shared demo login here
+    // previously wiped whoever's real MFA enrollment on that account every
+    // time the test suite ran, forcing them back through the QR setup flow.
+    private static final String EMAIL = "mfa.session.test@demo.com";
     private static final String PASSWORD = "Admin123!";
     private static final String ACCESS_COOKIE = "airport_ops_access_token";
     private static final String REFRESH_COOKIE = "airport_ops_refresh_token";
@@ -149,7 +162,7 @@ class SessionAuthIntegrationTests {
 
         assertError(response, HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS");
         assertNoSessionCookies(response);
-        assertThat(challengeRepository.count()).isZero();
+        assertThat(testUserChallengeCount()).isZero();
     }
 
     @Test
@@ -181,7 +194,7 @@ class SessionAuthIntegrationTests {
         assertMfaTokenCookie(response, ACCESS_COOKIE, "access-token", 295, 300);
         assertMfaTokenCookie(response, REFRESH_COOKIE, "refresh-token", 1795, 1800);
         UserTotpCredentialEntity credential = credentialRepository
-                .findEnabledByUserId(platformAdminId())
+                .findEnabledByUserId(testUserId())
                 .orElseThrow();
         assertThat(encryptionService.decrypt(new EncryptedValue(
                 credential.getSecretCiphertext(),
@@ -350,7 +363,7 @@ class SessionAuthIntegrationTests {
                         VALUES (?, ?, 'DISABLED', ?, ?, 'v1', now(), now(), now())
                         """,
                 credentialId,
-                platformAdminId(),
+                testUserId(),
                 disabledSecret.ciphertext(),
                 disabledSecret.nonce());
         stubLogin(tokens("access-token", "refresh-token"));
@@ -366,7 +379,7 @@ class SessionAuthIntegrationTests {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
         UserTotpCredentialEntity credential = credentialRepository
-                .findByUserId(platformAdminId())
+                .findByUserId(testUserId())
                 .orElseThrow();
         assertThat(credential.getId()).isEqualTo(credentialId);
         assertThat(credential.getStatus()).isEqualTo(TotpCredentialStatus.ENABLED);
@@ -374,7 +387,7 @@ class SessionAuthIntegrationTests {
                 credential.getSecretCiphertext(),
                 credential.getSecretNonce())))
                 .isEqualTo(challenge.manualEntryKey());
-        assertThat(credentialRepository.count()).isEqualTo(1);
+        assertThat(testUserCredentialCount()).isEqualTo(1);
     }
 
     @Test
@@ -394,14 +407,14 @@ class SessionAuthIntegrationTests {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
         UserTotpCredentialEntity credential = credentialRepository
-                .findByUserId(platformAdminId())
+                .findByUserId(testUserId())
                 .orElseThrow();
         assertThat(credential.getId()).isEqualTo(existingCredential.getId());
         assertThat(encryptionService.decrypt(new EncryptedValue(
                 credential.getSecretCiphertext(),
                 credential.getSecretNonce())))
                 .isEqualTo(existingSecret);
-        assertThat(credentialRepository.count()).isEqualTo(1);
+        assertThat(testUserCredentialCount()).isEqualTo(1);
     }
 
     @Test
@@ -448,7 +461,7 @@ class SessionAuthIntegrationTests {
 
         assertError(response, HttpStatus.UNAUTHORIZED, "MFA_CHALLENGE_EXPIRED");
         assertNoSessionCookies(response);
-        assertThat(credentialRepository.findByUserId(platformAdminId())).isEmpty();
+        assertThat(credentialRepository.findByUserId(testUserId())).isEmpty();
     }
 
     @Test
@@ -642,17 +655,31 @@ class SessionAuthIntegrationTests {
     private UserTotpCredentialEntity enableCredential(String secret) {
         EncryptedValue encrypted = encryptionService.encrypt(secret);
         return credentialRepository.saveAndFlush(UserTotpCredentialEntity.enabled(
-                platformAdminId(),
+                testUserId(),
                 encrypted.ciphertext(),
                 encrypted.nonce(),
                 clock.instant()));
     }
 
-    private UUID platformAdminId() {
+    private UUID testUserId() {
         return jdbcTemplate.queryForObject(
                 "SELECT id FROM iam.users WHERE lower(email) = ?",
                 UUID.class,
                 EMAIL);
+    }
+
+    private long testUserCredentialCount() {
+        return jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM iam.user_totp_credentials WHERE user_id = ?",
+                Long.class,
+                testUserId());
+    }
+
+    private long testUserChallengeCount() {
+        return jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM iam.mfa_login_challenges WHERE user_id = ?",
+                Long.class,
+                testUserId());
     }
 
     private String currentCode(String secret) {
