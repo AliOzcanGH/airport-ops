@@ -2,6 +2,7 @@ package com.aliozcan.airportops.flight_service.flight;
 
 import com.aliozcan.airportops.flight_service.flight.dto.CreateFlightRequest;
 import com.aliozcan.airportops.flight_service.flight.dto.FlightResponse;
+import com.aliozcan.airportops.flight_service.flight.dto.UpdateFlightStatusRequest;
 import com.aliozcan.airportops.flight_service.security.IamPrincipal;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -27,6 +28,37 @@ public class FlightService {
         return flightRepository.findByOrganizationIdOrderByScheduledDeparture(pathOrganizationId).stream()
                 .map(this::toResponse)
                 .toList();
+    }
+
+    public FlightResponse getOne(UUID pathOrganizationId, UUID flightId, IamPrincipal principal) {
+        verifyTenant(pathOrganizationId, principal);
+        return toResponse(findOwnedFlight(pathOrganizationId, flightId));
+    }
+
+    public FlightResponse updateStatus(
+            UUID pathOrganizationId,
+            UUID flightId,
+            IamPrincipal principal,
+            UpdateFlightStatusRequest request) {
+        verifyTenant(pathOrganizationId, principal);
+        FlightEntity entity = findOwnedFlight(pathOrganizationId, flightId);
+
+        FlightStatus currentStatus = FlightStatus.valueOf(entity.getStatus());
+        FlightStatus targetStatus = FlightStatus.valueOf(request.status());
+        if (!currentStatus.canTransitionTo(targetStatus)) {
+            throw new InvalidStatusTransitionException(currentStatus, targetStatus);
+        }
+
+        entity.updateStatus(targetStatus.name());
+        return toResponse(flightRepository.save(entity));
+    }
+
+    private FlightEntity findOwnedFlight(UUID pathOrganizationId, UUID flightId) {
+        FlightEntity entity = flightRepository.findById(flightId).orElseThrow(FlightNotFoundException::new);
+        if (!entity.getOrganizationId().equals(pathOrganizationId)) {
+            throw new FlightNotFoundException();
+        }
+        return entity;
     }
 
     public FlightResponse create(

@@ -1,10 +1,12 @@
 package com.aliozcan.airportops.flight_service.error;
 
+import com.aliozcan.airportops.flight_service.flight.FlightNotFoundException;
 import com.aliozcan.airportops.flight_service.flight.FlightNumberConflictException;
 import com.aliozcan.airportops.flight_service.flight.GateConflictException;
 import com.aliozcan.airportops.flight_service.flight.GateNotActiveException;
 import com.aliozcan.airportops.flight_service.flight.GateNotFoundException;
 import com.aliozcan.airportops.flight_service.flight.GateVerificationUnavailableException;
+import com.aliozcan.airportops.flight_service.flight.InvalidStatusTransitionException;
 import com.aliozcan.airportops.flight_service.flight.TenantMismatchException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
@@ -66,6 +68,27 @@ public class ApiExceptionHandler {
                 HttpStatus.CONFLICT,
                 "GATE_CONFLICT",
                 "Another flight already occupies this gate during the requested time range",
+                request);
+    }
+
+    @ExceptionHandler(FlightNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleFlightNotFound(
+            FlightNotFoundException exception, HttpServletRequest request) {
+        return errorResponse(
+                HttpStatus.NOT_FOUND,
+                "FLIGHT_NOT_FOUND",
+                "Flight was not found for this organization",
+                request);
+    }
+
+    @ExceptionHandler(InvalidStatusTransitionException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidStatusTransition(
+            InvalidStatusTransitionException exception, HttpServletRequest request) {
+        return errorResponse(
+                HttpStatus.CONFLICT,
+                "INVALID_STATUS_TRANSITION",
+                "Cannot transition flight from " + exception.getCurrentStatus()
+                        + " to " + exception.getAttemptedStatus(),
                 request);
     }
 
