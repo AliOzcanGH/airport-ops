@@ -35,6 +35,10 @@ public class SecurityConfig {
                                 "/organizations/*/flights/*").authenticated()
                         .requestMatchers(org.springframework.http.HttpMethod.PUT,
                                 "/organizations/*/flights/*/status").authenticated()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET,
+                                "/organizations/*/flights/*/tasks").authenticated()
+                        .requestMatchers(org.springframework.http.HttpMethod.PUT,
+                                "/organizations/*/flights/*/tasks/*/status").authenticated()
                         .anyRequest().denyAll())
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .jwt(jwt -> jwt

@@ -14,6 +14,7 @@ import { TenantDashboardPage } from '@/features/dashboard/pages/TenantDashboardP
 import { InvitationAcceptPage } from '@/features/invitations/pages/InvitationAcceptPage'
 import { PlatformInvitationsPage } from '@/features/invitations/pages/PlatformInvitationsPage'
 import { FlightCreatePage } from '@/features/flights/pages/FlightCreatePage'
+import { FlightDetailPage } from '@/features/flights/pages/FlightDetailPage'
 import { FlightListPage } from '@/features/flights/pages/FlightListPage'
 import { TenantMembersPage } from '@/features/members/pages/TenantMembersPage'
 import { NotFoundPage } from '@/features/not-found/NotFoundPage'
@@ -72,6 +73,7 @@ export const routeDefinitions: RouteObject[] = [
               { path: '/app/stations/:stationId', element: <StationDetailPage /> },
               { path: '/app/flights', element: <FlightListPage /> },
               { path: '/app/flights/new', element: <FlightCreatePage /> },
+              { path: '/app/flights/:flightId', element: <FlightDetailPage /> },
               {
                 element: <RequireTenantRole role="AIRLINE_ADMIN" />,
                 children: [
