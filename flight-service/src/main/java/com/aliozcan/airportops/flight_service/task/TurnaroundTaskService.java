@@ -1,5 +1,6 @@
 package com.aliozcan.airportops.flight_service.task;
 
+import com.aliozcan.airportops.flight_service.event.TaskCompletedEvent;
 import com.aliozcan.airportops.flight_service.flight.FlightEntity;
 import com.aliozcan.airportops.flight_service.flight.FlightNotFoundException;
 import com.aliozcan.airportops.flight_service.flight.FlightRepository;
@@ -7,8 +8,11 @@ import com.aliozcan.airportops.flight_service.flight.TenantMismatchException;
 import com.aliozcan.airportops.flight_service.security.IamPrincipal;
 import com.aliozcan.airportops.flight_service.task.dto.TaskResponse;
 import com.aliozcan.airportops.flight_service.task.dto.UpdateTaskStatusRequest;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -17,11 +21,15 @@ public class TurnaroundTaskService {
 
     private final TurnaroundTaskRepository taskRepository;
     private final FlightRepository flightRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     public TurnaroundTaskService(
-            TurnaroundTaskRepository taskRepository, FlightRepository flightRepository) {
+            TurnaroundTaskRepository taskRepository,
+            FlightRepository flightRepository,
+            ApplicationEventPublisher eventPublisher) {
         this.taskRepository = taskRepository;
         this.flightRepository = flightRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     public List<TaskResponse> list(UUID pathOrganizationId, UUID flightId, IamPrincipal principal) {
@@ -32,6 +40,7 @@ public class TurnaroundTaskService {
                 .toList();
     }
 
+    @Transactional
     public TaskResponse updateStatus(
             UUID pathOrganizationId,
             UUID flightId,
@@ -53,7 +62,18 @@ public class TurnaroundTaskService {
         }
 
         task.updateStatus(targetStatus.name(), request.assignedTo());
-        return toResponse(taskRepository.save(task));
+        TurnaroundTaskEntity saved = taskRepository.save(task);
+
+        if (targetStatus == TaskStatus.DONE) {
+            eventPublisher.publishEvent(new TaskCompletedEvent(
+                    saved.getId(),
+                    saved.getFlightId(),
+                    pathOrganizationId,
+                    saved.getTaskType(),
+                    Instant.now()));
+        }
+
+        return toResponse(saved);
     }
 
     private void verifyTenant(UUID pathOrganizationId, IamPrincipal principal) {
