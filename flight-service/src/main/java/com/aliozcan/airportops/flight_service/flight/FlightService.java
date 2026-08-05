@@ -1,5 +1,7 @@
 package com.aliozcan.airportops.flight_service.flight;
 
+import com.aliozcan.airportops.flight_service.event.FlightCreatedEvent;
+import com.aliozcan.airportops.flight_service.event.FlightStatusChangedEvent;
 import com.aliozcan.airportops.flight_service.flight.dto.CreateFlightRequest;
 import com.aliozcan.airportops.flight_service.flight.dto.FlightResponse;
 import com.aliozcan.airportops.flight_service.flight.dto.UpdateFlightStatusRequest;
@@ -7,6 +9,7 @@ import com.aliozcan.airportops.flight_service.security.IamPrincipal;
 import com.aliozcan.airportops.flight_service.task.TaskType;
 import com.aliozcan.airportops.flight_service.task.TurnaroundTaskEntity;
 import com.aliozcan.airportops.flight_service.task.TurnaroundTaskRepository;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,14 +27,17 @@ public class FlightService {
     private final FlightRepository flightRepository;
     private final AirportServiceGateClient airportServiceGateClient;
     private final TurnaroundTaskRepository turnaroundTaskRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     public FlightService(
             FlightRepository flightRepository,
             AirportServiceGateClient airportServiceGateClient,
-            TurnaroundTaskRepository turnaroundTaskRepository) {
+            TurnaroundTaskRepository turnaroundTaskRepository,
+            ApplicationEventPublisher eventPublisher) {
         this.flightRepository = flightRepository;
         this.airportServiceGateClient = airportServiceGateClient;
         this.turnaroundTaskRepository = turnaroundTaskRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     public List<FlightResponse> list(UUID pathOrganizationId, IamPrincipal principal) {
@@ -46,6 +52,7 @@ public class FlightService {
         return toResponse(findOwnedFlight(pathOrganizationId, flightId));
     }
 
+    @Transactional
     public FlightResponse updateStatus(
             UUID pathOrganizationId,
             UUID flightId,
@@ -61,7 +68,16 @@ public class FlightService {
         }
 
         entity.updateStatus(targetStatus.name());
-        return toResponse(flightRepository.save(entity));
+        FlightEntity saved = flightRepository.save(entity);
+
+        eventPublisher.publishEvent(new FlightStatusChangedEvent(
+                saved.getId(),
+                saved.getOrganizationId(),
+                saved.getFlightNumber(),
+                currentStatus.name(),
+                targetStatus.name()));
+
+        return toResponse(saved);
     }
 
     private FlightEntity findOwnedFlight(UUID pathOrganizationId, UUID flightId) {
@@ -114,6 +130,17 @@ public class FlightService {
                 .map(taskType -> new TurnaroundTaskEntity(saved.getId(), taskType.name(), OPEN_TASK_STATUS))
                 .toList();
         turnaroundTaskRepository.saveAll(tasks);
+
+        eventPublisher.publishEvent(new FlightCreatedEvent(
+                saved.getId(),
+                saved.getOrganizationId(),
+                saved.getFlightNumber(),
+                saved.getOrigin(),
+                saved.getDestination(),
+                saved.getScheduledDeparture(),
+                saved.getScheduledArrival(),
+                saved.getAssignedGateId(),
+                saved.getStatus()));
 
         return toResponse(saved);
     }
