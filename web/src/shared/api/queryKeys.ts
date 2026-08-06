@@ -19,5 +19,7 @@ export const queryKeys = {
     stationGates: (stationId: string) =>
       ['app', 'stations', stationId, 'gates'] as const,
     flights: ['app', 'flights'] as const,
+    flightTasks: (flightId: string) =>
+      ['app', 'flights', flightId, 'tasks'] as const,
   },
 }

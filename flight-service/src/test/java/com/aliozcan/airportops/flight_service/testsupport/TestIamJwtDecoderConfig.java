@@ -27,10 +27,10 @@ public class TestIamJwtDecoderConfig {
     public JwtDecoder testJwtDecoder() {
         return token -> switch (token) {
             case ADMIN_TOKEN -> jwt(token, ORG_A, List.of("AIRLINE_ADMIN"),
-                    List.of("flight:create", "flight:read", "flight:update"));
-            case VIEWER_TOKEN -> jwt(token, ORG_A, List.of("VIEWER"), List.of("flight:read"));
+                    List.of("flight:create", "flight:read", "flight:update", "task:read", "task:complete"));
+            case VIEWER_TOKEN -> jwt(token, ORG_A, List.of("VIEWER"), List.of("flight:read", "task:read"));
             case OTHER_ORG_ADMIN_TOKEN -> jwt(token, ORG_B, List.of("AIRLINE_ADMIN"),
-                    List.of("flight:create", "flight:read", "flight:update"));
+                    List.of("flight:create", "flight:read", "flight:update", "task:read", "task:complete"));
             default -> throw new BadJwtException("Invalid test token");
         };
     }
