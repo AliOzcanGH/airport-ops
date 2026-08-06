@@ -15,10 +15,12 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.web.client.MockRestServiceServer;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -31,10 +33,16 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 @Import({TestIamJwtDecoderConfig.class, MockAirportServiceConfig.class})
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Sql(statements = {
+        "DELETE FROM flight.turnaround_tasks WHERE flight_id IN "
+                + "(SELECT id FROM flight.flights WHERE organization_id IN "
+                + "('11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222'))",
         "DELETE FROM flight.flights WHERE organization_id IN "
                 + "('11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222')"
 }, executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD)
 @Sql(statements = {
+        "DELETE FROM flight.turnaround_tasks WHERE flight_id IN "
+                + "(SELECT id FROM flight.flights WHERE organization_id IN "
+                + "('11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222'))",
         "DELETE FROM flight.flights WHERE organization_id IN "
                 + "('11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222')"
 }, executionPhase = Sql.ExecutionPhase.AFTER_TEST_METHOD)
@@ -45,6 +53,9 @@ class FlightControllerIntegrationTests {
 
     @Autowired
     private MockRestServiceServer mockAirportServiceServer;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @Test
     void createsFlightForAuthorizedAdminWithActiveGate() {
@@ -64,6 +75,17 @@ class FlightControllerIntegrationTests {
         assertThat(response.getBody().status()).isEqualTo("SCHEDULED");
         assertThat(response.getBody().assignedGateId()).isEqualTo(gateId);
         mockAirportServiceServer.verify();
+
+        List<String> taskTypes = jdbcTemplate.queryForList(
+                "SELECT task_type FROM flight.turnaround_tasks WHERE flight_id = ? ORDER BY task_type",
+                String.class, response.getBody().id());
+        assertThat(taskTypes).containsExactlyInAnyOrder(
+                "CLEANING", "CATERING", "FUELING", "BAGGAGE_LOADING",
+                "BOARDING_PREPARATION", "SECURITY_CHECK");
+        List<String> taskStatuses = jdbcTemplate.queryForList(
+                "SELECT DISTINCT status FROM flight.turnaround_tasks WHERE flight_id = ?",
+                String.class, response.getBody().id());
+        assertThat(taskStatuses).containsExactly("OPEN");
     }
 
     @Test
