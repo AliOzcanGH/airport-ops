@@ -104,6 +104,10 @@ public class SecurityConfig {
                                 .authenticated()
                         .requestMatchers(HttpMethod.PUT, "/app/flights/*/status")
                                 .authenticated()
+                        .requestMatchers(HttpMethod.GET, "/app/flights/*/tasks")
+                                .authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/app/flights/*/tasks/*/status")
+                                .authenticated()
                         .anyRequest().denyAll()
                 )
                 .exceptionHandling(exceptions -> exceptions
