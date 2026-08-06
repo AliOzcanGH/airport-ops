@@ -13,8 +13,13 @@ import { PlatformDashboardPage } from '@/features/dashboard/pages/PlatformDashbo
 import { TenantDashboardPage } from '@/features/dashboard/pages/TenantDashboardPage'
 import { InvitationAcceptPage } from '@/features/invitations/pages/InvitationAcceptPage'
 import { PlatformInvitationsPage } from '@/features/invitations/pages/PlatformInvitationsPage'
+import { FlightCreatePage } from '@/features/flights/pages/FlightCreatePage'
+import { FlightListPage } from '@/features/flights/pages/FlightListPage'
 import { TenantMembersPage } from '@/features/members/pages/TenantMembersPage'
 import { NotFoundPage } from '@/features/not-found/NotFoundPage'
+import { StationCreatePage } from '@/features/stations/pages/StationCreatePage'
+import { StationDetailPage } from '@/features/stations/pages/StationDetailPage'
+import { StationListPage } from '@/features/stations/pages/StationListPage'
 import { PlatformTenantDetailPage } from '@/features/tenants/pages/PlatformTenantDetailPage'
 import { PlatformTenantDirectoryPage } from '@/features/tenants/pages/PlatformTenantDirectoryPage'
 import { AppSetupPage } from '@/features/setup/pages/AppSetupPage'
@@ -62,6 +67,11 @@ export const routeDefinitions: RouteObject[] = [
             element: <RequireTenantSetupComplete />,
             children: [
               { path: '/app/dashboard', element: <TenantDashboardPage /> },
+              { path: '/app/stations', element: <StationListPage /> },
+              { path: '/app/stations/new', element: <StationCreatePage /> },
+              { path: '/app/stations/:stationId', element: <StationDetailPage /> },
+              { path: '/app/flights', element: <FlightListPage /> },
+              { path: '/app/flights/new', element: <FlightCreatePage /> },
               {
                 element: <RequireTenantRole role="AIRLINE_ADMIN" />,
                 children: [
