@@ -94,6 +94,37 @@ class AppStationProxyIntegrationTests {
     }
 
     @Test
+    void forwardsListStationsWithIamJwtAndReturnsAirportServiceResponse() {
+        UUID organizationId = jdbcTemplate.queryForObject(
+                "SELECT id FROM iam.organizations WHERE name = 'W8B Tenant Org'", UUID.class);
+        String airportServiceResponseBody = "[]";
+
+        mockAirportServiceServer.expect(requestTo(
+                        "http://mock-airport-service/organizations/" + organizationId + "/stations"))
+                .andExpect(method(HttpMethod.GET))
+                .andExpect(header(HttpHeaders.AUTHORIZATION, org.hamcrest.Matchers.startsWith("Bearer ")))
+                .andRespond(withStatus(HttpStatus.OK)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body(airportServiceResponseBody));
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(TestJwtDecoderConfig.W8B_TENANT_TOKEN);
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/app/stations", HttpMethod.GET, new HttpEntity<>(headers), String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isEqualTo(airportServiceResponseBody);
+        mockAirportServiceServer.verify();
+    }
+
+    @Test
+    void rejectsListStationsWithoutBearerToken() {
+        ResponseEntity<String> response = restTemplate.getForEntity("/app/stations", String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
+    @Test
     void relaysAirportServiceErrorResponseAsIs() {
         UUID organizationId = jdbcTemplate.queryForObject(
                 "SELECT id FROM iam.organizations WHERE name = 'W8B Tenant Org'", UUID.class);
