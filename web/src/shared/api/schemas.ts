@@ -491,6 +491,20 @@ export const taskResponseSchema = z.object({
 
 export const tasksResponseSchema = z.array(taskResponseSchema)
 
+export const auditLogResponseSchema = z.object({
+  id: z.uuid(),
+  organizationId: z.uuid().nullable(),
+  actorUserId: z.uuid().nullable(),
+  actorEmail: z.string().nullable(),
+  action: z.string().min(1),
+  resourceType: z.string().min(1),
+  resourceId: z.uuid().nullable(),
+  occurredAt: z.string().min(1),
+  metadata: z.string().nullable(),
+})
+
+export const auditLogsResponseSchema = z.array(auditLogResponseSchema)
+
 export type HealthResponse = z.infer<typeof healthResponseSchema>
 export type BackendErrorResponse = z.infer<typeof backendErrorResponseSchema>
 export type CsrfMetadata = z.infer<typeof csrfMetadataSchema>
@@ -589,3 +603,5 @@ export type UpdateTaskStatusForm = z.input<typeof updateTaskStatusRequestSchema>
 export type UpdateTaskStatusRequest = z.output<typeof updateTaskStatusRequestSchema>
 export type TaskResponse = z.infer<typeof taskResponseSchema>
 export type TasksResponse = z.infer<typeof tasksResponseSchema>
+export type AuditLogResponse = z.infer<typeof auditLogResponseSchema>
+export type AuditLogsResponse = z.infer<typeof auditLogsResponseSchema>
