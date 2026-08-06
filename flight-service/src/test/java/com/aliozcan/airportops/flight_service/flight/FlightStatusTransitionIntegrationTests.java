@@ -34,10 +34,16 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 @Import({TestIamJwtDecoderConfig.class, MockAirportServiceConfig.class})
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Sql(statements = {
+        "DELETE FROM flight.turnaround_tasks WHERE flight_id IN "
+                + "(SELECT id FROM flight.flights WHERE organization_id IN "
+                + "('11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222'))",
         "DELETE FROM flight.flights WHERE organization_id IN "
                 + "('11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222')"
 }, executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD)
 @Sql(statements = {
+        "DELETE FROM flight.turnaround_tasks WHERE flight_id IN "
+                + "(SELECT id FROM flight.flights WHERE organization_id IN "
+                + "('11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222'))",
         "DELETE FROM flight.flights WHERE organization_id IN "
                 + "('11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222')"
 }, executionPhase = Sql.ExecutionPhase.AFTER_TEST_METHOD)
