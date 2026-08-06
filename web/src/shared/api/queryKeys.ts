@@ -9,6 +9,7 @@ export const queryKeys = {
     tenants: ['platform', 'tenants'] as const,
     tenantDetail: (organizationId: string) =>
       ['platform', 'tenants', organizationId] as const,
+    auditLogs: ['platform', 'auditLogs'] as const,
   },
   app: {
     setupOverview: ['app', 'setup', 'overview'] as const,
@@ -21,5 +22,6 @@ export const queryKeys = {
     flights: ['app', 'flights'] as const,
     flightTasks: (flightId: string) =>
       ['app', 'flights', flightId, 'tasks'] as const,
+    auditLogs: ['app', 'auditLogs'] as const,
   },
 }
