@@ -20,6 +20,8 @@ import com.aliozcan.airportops.iam_service.platform.invitation.PendingInvitation
 import com.aliozcan.airportops.iam_service.platform.invitation.ProvisioningInvariantException;
 import com.aliozcan.airportops.iam_service.platform.tenant.PlatformTenantNotFoundException;
 import com.aliozcan.airportops.iam_service.tenant.AmbiguousTenantContextException;
+import com.aliozcan.airportops.iam_service.tenant.member.CannotModifyOwnRoleException;
+import com.aliozcan.airportops.iam_service.tenant.member.MemberNotFoundException;
 import com.aliozcan.airportops.iam_service.tenant.member.OrganizationMemberAlreadyExistsException;
 import com.aliozcan.airportops.iam_service.tenant.member.TenantMismatchException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -343,6 +345,28 @@ public class AuthExceptionHandler {
                 HttpStatus.CONFLICT,
                 "DUPLICATE_RESOURCE",
                 DUPLICATE_RESOURCE_MESSAGE,
+                request);
+    }
+
+    @ExceptionHandler(MemberNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleMemberNotFound(
+            MemberNotFoundException exception,
+            HttpServletRequest request) {
+        return errorResponse(
+                HttpStatus.NOT_FOUND,
+                "MEMBER_NOT_FOUND",
+                "Member was not found for this organization",
+                request);
+    }
+
+    @ExceptionHandler(CannotModifyOwnRoleException.class)
+    public ResponseEntity<ErrorResponse> handleCannotModifyOwnRole(
+            CannotModifyOwnRoleException exception,
+            HttpServletRequest request) {
+        return errorResponse(
+                HttpStatus.CONFLICT,
+                "CANNOT_MODIFY_OWN_ROLE",
+                "Admins cannot change their own role through this endpoint",
                 request);
     }
 

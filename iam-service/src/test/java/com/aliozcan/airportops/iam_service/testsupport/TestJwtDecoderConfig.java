@@ -53,6 +53,10 @@ public class TestJwtDecoderConfig {
     public static final String W8B_TENANT_TOKEN = "w8b-tenant-token";
     public static final String W9_TENANT_TOKEN = "w9-tenant-token";
     public static final String W10_TENANT_TOKEN = "w10-tenant-token";
+    public static final String W14_ADMIN_TOKEN = "w14-admin-token";
+    public static final String W14_OPS_TOKEN = "w14-ops-token";
+    public static final String W14_OTHER_ADMIN_TOKEN = "w14-other-admin-token";
+    public static final String W14_PROXY_TENANT_TOKEN = "w14-proxy-tenant-token";
     public static final String ISSUER = "http://127.0.0.1:8085/realms/airport-ops";
     public static final String EMAIL = "platform.admin@demo.com";
     public static final String PERMISSIONLESS_EMAIL = "k4.permissionless@integration.test";
@@ -106,6 +110,10 @@ public class TestJwtDecoderConfig {
                 case W8B_TENANT_TOKEN -> jwt(token, "tenant@w8b.test", true);
                 case W9_TENANT_TOKEN -> jwt(token, "tenant@w9.test", true);
                 case W10_TENANT_TOKEN -> jwt(token, "tenant@w10.test", true);
+                case W14_ADMIN_TOKEN -> jwt(token, "admin@w14.test", true);
+                case W14_OPS_TOKEN -> jwt(token, "ops@w14.test", true);
+                case W14_OTHER_ADMIN_TOKEN -> jwt(token, "other-admin@w14.test", true);
+                case W14_PROXY_TENANT_TOKEN -> jwt(token, "tenant@w14proxy.test", true);
                 default -> throw new BadJwtException("Invalid test token");
             };
         };
