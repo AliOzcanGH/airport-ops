@@ -1,4 +1,4 @@
-import { Building2, ClipboardList, LayoutDashboard, MapPin, Plane, Users } from 'lucide-react'
+import { BarChart3, Building2, ClipboardList, LayoutDashboard, MapPin, Plane, Users } from 'lucide-react'
 import { useCurrentUser } from '@/features/auth/hooks/useAuthSession'
 import {
   WorkspaceShell,
@@ -36,6 +36,7 @@ export function TenantShell() {
       },
       { to: '/app/stations', label: 'Stations', icon: MapPin },
       { to: '/app/flights', label: 'Flights', icon: Plane },
+      { to: '/app/reports', label: 'Reports', icon: BarChart3 },
       ...(isAirlineAdmin
         ? [
             { to: '/app/members', label: 'Members', icon: Users },
@@ -49,6 +50,7 @@ export function TenantShell() {
       '/app/stations/new': 'New station',
       '/app/flights': 'Flights',
       '/app/flights/new': 'New flight',
+      '/app/reports': 'Reports',
       ...(isAirlineAdmin
         ? { '/app/members': 'Members', '/app/audit-logs': 'Audit log' }
         : {}),
