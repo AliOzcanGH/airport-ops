@@ -505,6 +505,20 @@ export const auditLogResponseSchema = z.object({
 
 export const auditLogsResponseSchema = z.array(auditLogResponseSchema)
 
+export const dailyFlightSummaryResponseSchema = z.object({
+  date: z.string().min(1),
+  totalFlights: z.number(),
+  delayedFlights: z.number(),
+  cancelledFlights: z.number(),
+})
+
+export const gateUtilizationEntryResponseSchema = z.object({
+  gateId: z.uuid(),
+  flightCount: z.number(),
+})
+
+export const gateUtilizationResponseSchema = z.array(gateUtilizationEntryResponseSchema)
+
 export type HealthResponse = z.infer<typeof healthResponseSchema>
 export type BackendErrorResponse = z.infer<typeof backendErrorResponseSchema>
 export type CsrfMetadata = z.infer<typeof csrfMetadataSchema>
@@ -605,3 +619,6 @@ export type TaskResponse = z.infer<typeof taskResponseSchema>
 export type TasksResponse = z.infer<typeof tasksResponseSchema>
 export type AuditLogResponse = z.infer<typeof auditLogResponseSchema>
 export type AuditLogsResponse = z.infer<typeof auditLogsResponseSchema>
+export type DailyFlightSummaryResponse = z.infer<typeof dailyFlightSummaryResponseSchema>
+export type GateUtilizationEntryResponse = z.infer<typeof gateUtilizationEntryResponseSchema>
+export type GateUtilizationResponse = z.infer<typeof gateUtilizationResponseSchema>

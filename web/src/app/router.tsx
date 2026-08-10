@@ -20,6 +20,7 @@ import { FlightDetailPage } from '@/features/flights/pages/FlightDetailPage'
 import { FlightListPage } from '@/features/flights/pages/FlightListPage'
 import { TenantMembersPage } from '@/features/members/pages/TenantMembersPage'
 import { NotFoundPage } from '@/features/not-found/NotFoundPage'
+import { ReportsPage } from '@/features/reports/pages/ReportsPage'
 import { StationCreatePage } from '@/features/stations/pages/StationCreatePage'
 import { StationDetailPage } from '@/features/stations/pages/StationDetailPage'
 import { StationListPage } from '@/features/stations/pages/StationListPage'
@@ -80,6 +81,7 @@ export const routeDefinitions: RouteObject[] = [
               { path: '/app/flights', element: <FlightListPage /> },
               { path: '/app/flights/new', element: <FlightCreatePage /> },
               { path: '/app/flights/:flightId', element: <FlightDetailPage /> },
+              { path: '/app/reports', element: <ReportsPage /> },
               {
                 element: <RequireTenantRole role="AIRLINE_ADMIN" />,
                 children: [

@@ -23,5 +23,7 @@ export const queryKeys = {
     flightTasks: (flightId: string) =>
       ['app', 'flights', flightId, 'tasks'] as const,
     auditLogs: ['app', 'auditLogs'] as const,
+    dailyFlights: (date: string) => ['app', 'reports', 'dailyFlights', date] as const,
+    gateUtilization: (date: string) => ['app', 'reports', 'gateUtilization', date] as const,
   },
 }
