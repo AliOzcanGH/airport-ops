@@ -6,7 +6,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.web.client.RestClient;
 
 @Configuration
-@EnableConfigurationProperties(ReportServiceProperties.class)
+@EnableConfigurationProperties({ReportServiceProperties.class, InternalServiceSecretProperties.class})
 public class ReportServiceClientConfig {
 
     @Bean
