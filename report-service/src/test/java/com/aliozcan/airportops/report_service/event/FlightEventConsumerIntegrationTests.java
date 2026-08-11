@@ -110,6 +110,30 @@ class FlightEventConsumerIntegrationTests {
     }
 
     @Test
+    void flightCreatedEventIncrementsOrganizationOperationalSummary() {
+        UUID eventId = UUID.randomUUID();
+        UUID flightId = UUID.randomUUID();
+        UUID organizationId = UUID.randomUUID();
+
+        kafkaTemplate.send(TOPIC, organizationId.toString(),
+                flightCreatedJson(eventId, flightId, organizationId, UUID.randomUUID()));
+
+        await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
+            Integer totalFlightsLast30Days = jdbcTemplate.queryForObject(
+                    "SELECT total_flights_last_30_days FROM report.organization_operational_summary "
+                            + "WHERE organization_id = ?",
+                    Integer.class, organizationId);
+            assertThat(totalFlightsLast30Days).isEqualTo(1);
+
+            java.sql.Timestamp lastFlightActivityAt = jdbcTemplate.queryForObject(
+                    "SELECT last_flight_activity_at FROM report.organization_operational_summary "
+                            + "WHERE organization_id = ?",
+                    java.sql.Timestamp.class, organizationId);
+            assertThat(lastFlightActivityAt.toInstant()).isEqualTo(Instant.parse("2026-08-05T10:00:00Z"));
+        });
+    }
+
+    @Test
     void flightStatusChangedToDelayedIncrementsDelayedFlightsCount() {
         UUID eventId = UUID.randomUUID();
         UUID flightId = UUID.randomUUID();

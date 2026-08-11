@@ -13,6 +13,7 @@ public record PlatformTenantDetailResponse(
         Instant createdAt,
         long memberCount,
         String primaryAdminEmail,
-        List<PlatformTenantMemberResponse> members
+        List<PlatformTenantMemberResponse> members,
+        OperationalSummaryResponse operationalSummary
 ) {
 }

@@ -1,5 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
-import { ArrowLeft, Building2, RefreshCw, Users } from 'lucide-react'
+import {
+  ArrowLeft,
+  Building2,
+  Plane,
+  RefreshCw,
+  TowerControl,
+  Users,
+} from 'lucide-react'
 import { Link, useParams } from 'react-router'
 import { platformTenantApi } from '@/features/tenants/api/platformTenantApi'
 import { ApiError } from '@/shared/api/ApiError'
@@ -223,8 +230,65 @@ function TenantDetailContent({
         </dl>
       </section>
 
+      <OperationalSummaryCard tenant={tenant} />
+
       <TenantMembersTable tenant={tenant} />
     </>
+  )
+}
+
+function OperationalSummaryCard({
+  tenant,
+}: {
+  tenant: PlatformTenantDetailResponse
+}) {
+  return (
+    <section
+      aria-labelledby="tenant-operational-summary-heading"
+      className="rounded-md border border-slate-200 bg-white p-5 shadow-sm"
+    >
+      <h2
+        id="tenant-operational-summary-heading"
+        className="text-sm font-semibold text-slate-950"
+      >
+        Operational summary
+      </h2>
+
+      {tenant.operationalSummary ? (
+        <dl className="mt-5 grid gap-4 sm:grid-cols-3">
+          <div>
+            <dt className="flex items-center gap-1.5 text-xs font-semibold uppercase text-slate-500">
+              <TowerControl aria-hidden="true" size={14} />
+              Stations
+            </dt>
+            <dd className="mt-2 text-sm text-slate-800">
+              {tenant.operationalSummary.stationCount}
+            </dd>
+          </div>
+          <div>
+            <dt className="flex items-center gap-1.5 text-xs font-semibold uppercase text-slate-500">
+              <Plane aria-hidden="true" size={14} />
+              Flights, last 30 days
+            </dt>
+            <dd className="mt-2 text-sm text-slate-800">
+              {tenant.operationalSummary.totalFlightsLast30Days}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs font-semibold uppercase text-slate-500">
+              Last flight activity
+            </dt>
+            <dd className="mt-2 text-sm text-slate-800">
+              {formatDate(tenant.operationalSummary.lastFlightActivityAt)}
+            </dd>
+          </div>
+        </dl>
+      ) : (
+        <p className="mt-3 text-sm text-slate-500">
+          Operational data unavailable.
+        </p>
+      )}
+    </section>
   )
 }
 

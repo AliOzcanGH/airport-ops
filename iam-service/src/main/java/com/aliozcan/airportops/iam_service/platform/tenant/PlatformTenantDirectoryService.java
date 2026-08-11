@@ -2,6 +2,7 @@ package com.aliozcan.airportops.iam_service.platform.tenant;
 
 import com.aliozcan.airportops.iam_service.domain.model.enums.OrganizationMemberStatus;
 import com.aliozcan.airportops.iam_service.domain.model.enums.OrganizationStatus;
+import com.aliozcan.airportops.iam_service.platform.tenant.dto.OperationalSummaryResponse;
 import com.aliozcan.airportops.iam_service.platform.tenant.dto.PlatformTenantDetailResponse;
 import com.aliozcan.airportops.iam_service.platform.tenant.dto.PlatformTenantDirectoryResponse;
 import com.aliozcan.airportops.iam_service.platform.tenant.dto.PlatformTenantMemberResponse;
@@ -24,10 +25,13 @@ import java.util.UUID;
 public class PlatformTenantDirectoryService {
 
     private final PlatformTenantDirectoryRepository repository;
+    private final ReportServiceOperationalSummaryClient operationalSummaryClient;
 
     public PlatformTenantDirectoryService(
-            PlatformTenantDirectoryRepository repository) {
+            PlatformTenantDirectoryRepository repository,
+            ReportServiceOperationalSummaryClient operationalSummaryClient) {
         this.repository = repository;
+        this.operationalSummaryClient = operationalSummaryClient;
     }
 
     @Transactional(readOnly = true)
@@ -45,6 +49,8 @@ public class PlatformTenantDirectoryService {
                 .map(this::toResponse)
                 .orElseThrow(PlatformTenantNotFoundException::new);
 
+        OperationalSummaryResponse operationalSummary = operationalSummaryClient.fetch(organizationId);
+
         return new PlatformTenantDetailResponse(
                 summary.organizationId(),
                 summary.organizationName(),
@@ -52,7 +58,8 @@ public class PlatformTenantDirectoryService {
                 summary.createdAt(),
                 summary.memberCount(),
                 summary.primaryAdminEmail(),
-                members(repository.findActiveMembersByOrganizationId(organizationId))
+                members(repository.findActiveMembersByOrganizationId(organizationId)),
+                operationalSummary
         );
     }
 
