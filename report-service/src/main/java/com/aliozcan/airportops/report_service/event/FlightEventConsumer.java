@@ -3,6 +3,7 @@ package com.aliozcan.airportops.report_service.event;
 import com.aliozcan.airportops.report_service.cache.GateUtilizationCache;
 import com.aliozcan.airportops.report_service.readmodel.DailyFlightSummaryRepository;
 import com.aliozcan.airportops.report_service.readmodel.GateUtilizationRepository;
+import com.aliozcan.airportops.report_service.readmodel.OrganizationOperationalSummaryRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -34,6 +35,7 @@ public class FlightEventConsumer {
     private final DailyFlightSummaryRepository dailyFlightSummaryRepository;
     private final GateUtilizationRepository gateUtilizationRepository;
     private final GateUtilizationCache gateUtilizationCache;
+    private final OrganizationOperationalSummaryRepository operationalSummaryRepository;
     private final ObjectMapper objectMapper;
 
     public FlightEventConsumer(
@@ -42,12 +44,14 @@ public class FlightEventConsumer {
             DailyFlightSummaryRepository dailyFlightSummaryRepository,
             GateUtilizationRepository gateUtilizationRepository,
             GateUtilizationCache gateUtilizationCache,
+            OrganizationOperationalSummaryRepository operationalSummaryRepository,
             ObjectMapper objectMapper) {
         this.processedEventRepository = processedEventRepository;
         this.flightReportEntryRepository = flightReportEntryRepository;
         this.dailyFlightSummaryRepository = dailyFlightSummaryRepository;
         this.gateUtilizationRepository = gateUtilizationRepository;
         this.gateUtilizationCache = gateUtilizationCache;
+        this.operationalSummaryRepository = operationalSummaryRepository;
         this.objectMapper = objectMapper;
     }
 
@@ -84,6 +88,8 @@ public class FlightEventConsumer {
         switch (envelope.eventType()) {
             case "FlightCreated" -> {
                 dailyFlightSummaryRepository.incrementTotalFlights(organizationId, summaryDate);
+                operationalSummaryRepository.incrementFlightActivity(
+                        organizationId, Instant.parse(envelope.occurredAt()));
                 UUID assignedGateId = extractUuid(envelope.payload(), "assignedGateId");
                 if (assignedGateId != null) {
                     gateUtilizationRepository.incrementFlightCount(organizationId, assignedGateId, summaryDate);

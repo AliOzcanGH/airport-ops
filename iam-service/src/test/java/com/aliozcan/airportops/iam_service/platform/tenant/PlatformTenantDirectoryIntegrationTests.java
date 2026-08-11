@@ -5,6 +5,7 @@ import com.aliozcan.airportops.iam_service.platform.tenant.dto.PlatformTenantDet
 import com.aliozcan.airportops.iam_service.platform.tenant.dto.PlatformTenantDirectoryResponse;
 import com.aliozcan.airportops.iam_service.platform.tenant.dto.PlatformTenantMemberResponse;
 import com.aliozcan.airportops.iam_service.platform.tenant.dto.PlatformTenantSummaryResponse;
+import com.aliozcan.airportops.iam_service.testsupport.MockReportServiceConfig;
 import com.aliozcan.airportops.iam_service.testsupport.TestJwtDecoderConfig;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,18 +16,28 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.jdbc.Sql;
+import org.springframework.test.web.client.MockRestServiceServer;
 
 import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 
-@Import(TestJwtDecoderConfig.class)
+@Import({TestJwtDecoderConfig.class, MockReportServiceConfig.class})
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class PlatformTenantDirectoryIntegrationTests {
+
+    @Autowired
+    private MockRestServiceServer mockReportServiceServer;
 
     private static final String TENANTS_PATH = "/platform/tenants";
     private static final UUID ACTIVE_ORGANIZATION_ID =
@@ -128,6 +139,12 @@ class PlatformTenantDirectoryIntegrationTests {
         executeAll(TENANT_DIRECTORY_CLEANUP);
         executeAll(TENANT_DIRECTORY_SETUP);
         try {
+            expectOperationalSummaryLookup(ACTIVE_ORGANIZATION_ID, withStatus(HttpStatus.OK)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body("{\"organizationId\":\"" + ACTIVE_ORGANIZATION_ID + "\","
+                            + "\"stationCount\":2,\"totalFlightsLast30Days\":47,"
+                            + "\"lastFlightActivityAt\":\"2026-08-10T09:00:00Z\"}"));
+
             ResponseEntity<PlatformTenantDetailResponse> response =
                     callTenantDetail(
                             TestJwtDecoderConfig.VALID_TOKEN,
@@ -144,6 +161,10 @@ class PlatformTenantDirectoryIntegrationTests {
             assertThat(body.primaryAdminEmail())
                     .isEqualTo("w4b.airline.admin@test.com");
             assertThat(body.members()).hasSize(2);
+
+            assertThat(body.operationalSummary()).isNotNull();
+            assertThat(body.operationalSummary().stationCount()).isEqualTo(2);
+            assertThat(body.operationalSummary().totalFlightsLast30Days()).isEqualTo(47);
 
             PlatformTenantMemberResponse admin = body.members()
                     .stream()
@@ -164,6 +185,47 @@ class PlatformTenantDirectoryIntegrationTests {
         } finally {
             executeAll(TENANT_DIRECTORY_CLEANUP);
         }
+    }
+
+    /**
+     * W16's key graceful-degradation test: operationalSummary is supplementary
+     * data, not an authorization decision, so a report-service outage must not
+     * fail the whole tenant-detail request — the rest of the page (member data)
+     * still has to render.
+     */
+    @Test
+    void returnsTenantDetailWithNullOperationalSummaryWhenReportServiceIsUnavailable() {
+        executeAll(TENANT_DIRECTORY_CLEANUP);
+        executeAll(TENANT_DIRECTORY_SETUP);
+        try {
+            expectOperationalSummaryLookup(ACTIVE_ORGANIZATION_ID, withServerError());
+
+            ResponseEntity<PlatformTenantDetailResponse> response =
+                    callTenantDetail(
+                            TestJwtDecoderConfig.VALID_TOKEN,
+                            ACTIVE_ORGANIZATION_ID,
+                            PlatformTenantDetailResponse.class);
+
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(response.getBody()).isNotNull();
+            PlatformTenantDetailResponse body = response.getBody();
+            assertThat(body.operationalSummary()).isNull();
+            assertThat(body.organizationId()).isEqualTo(ACTIVE_ORGANIZATION_ID);
+            assertThat(body.memberCount()).isEqualTo(2);
+            assertThat(body.members()).hasSize(2);
+        } finally {
+            executeAll(TENANT_DIRECTORY_CLEANUP);
+        }
+    }
+
+    private void expectOperationalSummaryLookup(
+            UUID organizationId, org.springframework.test.web.client.ResponseCreator responseCreator) {
+        mockReportServiceServer.expect(requestTo(
+                        "http://mock-report-service/internal/organizations/" + organizationId
+                                + "/operational-summary"))
+                .andExpect(method(HttpMethod.GET))
+                .andExpect(header("X-Internal-Service-Secret", "local-dev-internal-secret"))
+                .andRespond(responseCreator);
     }
 
     @Test
