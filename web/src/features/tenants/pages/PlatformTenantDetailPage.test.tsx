@@ -36,6 +36,17 @@ const tenantDetail = {
       joinedAt: '2026-07-13T10:08:00Z',
     },
   ],
+  operationalSummary: {
+    organizationId,
+    stationCount: 2,
+    totalFlightsLast30Days: 47,
+    lastFlightActivityAt: '2026-08-10T09:00:00Z',
+  },
+}
+
+const tenantDetailWithoutOperationalSummary = {
+  ...tenantDetail,
+  operationalSummary: null,
 }
 
 function backendError(status: number, errorCode: string, message: string) {
@@ -54,7 +65,11 @@ function backendError(status: number, errorCode: string, message: string) {
 
 function renderTenantDetail(
   path = `/platform/tenants/${organizationId}`,
-  outcome: 'success' | 'not-found' | 'error' = 'success',
+  outcome:
+    | 'success'
+    | 'not-found'
+    | 'error'
+    | 'operational-summary-unavailable' = 'success',
 ) {
   const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
     const url = String(input)
@@ -65,6 +80,9 @@ function renderTenantDetail(
       }
       if (outcome === 'error') {
         return backendError(500, 'UNEXPECTED_ERROR', 'Tenant detail failed')
+      }
+      if (outcome === 'operational-summary-unavailable') {
+        return Response.json(tenantDetailWithoutOperationalSummary)
       }
       return Response.json(tenantDetail)
     }
@@ -111,7 +129,7 @@ describe('PlatformTenantDetailPage', () => {
     ).toHaveTextContent('Tenant directory')
     expect(screen.getByText('ONBOARDING INCOMPLETE')).toBeInTheDocument()
     expect(screen.getAllByText('admin@qatar.example.com')).toHaveLength(2)
-    expect(screen.getByText('2')).toBeInTheDocument()
+    expect(screen.getAllByText('2')).not.toHaveLength(0)
 
     const table = screen.getByRole('table')
     expect(within(table).getByText('Qatar Admin')).toBeInTheDocument()
@@ -120,12 +138,33 @@ describe('PlatformTenantDetailPage', () => {
     expect(within(table).getAllByText('OPS_USER')).toHaveLength(2)
     expect(within(table).getByText('Qatar Ops')).toBeInTheDocument()
 
+    const operationalSummary = screen.getByRole('heading', {
+      name: 'Operational summary',
+    }).closest('section')
+    expect(operationalSummary).not.toBeNull()
+    expect(within(operationalSummary as HTMLElement).getByText('2')).toBeInTheDocument()
+    expect(within(operationalSummary as HTMLElement).getByText('47')).toBeInTheDocument()
+
     expect(fetchMock.mock.calls.some(([url]) =>
       String(url).endsWith(`/platform/tenants/${organizationId}`),
     )).toBe(true)
     expect(fetchMock.mock.calls.every(([url]) =>
       !String(url).includes('/api/api/'),
     )).toBe(true)
+  })
+
+  it('shows an unavailable message when report-service data could not be fetched', async () => {
+    renderTenantDetail(
+      `/platform/tenants/${organizationId}`,
+      'operational-summary-unavailable',
+    )
+
+    expect(
+      await screen.findByRole('heading', { name: 'Qatar Airways Cargo' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText('Operational data unavailable.'),
+    ).toBeInTheDocument()
   })
 
   it('shows not found state for backend 404', async () => {

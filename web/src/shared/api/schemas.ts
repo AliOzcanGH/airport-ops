@@ -217,9 +217,17 @@ export const platformTenantMemberSchema = z.object({
   joinedAt: z.string().nullable(),
 })
 
+export const operationalSummarySchema = z.object({
+  organizationId: z.uuid(),
+  stationCount: z.number().int().nonnegative(),
+  totalFlightsLast30Days: z.number().int().nonnegative(),
+  lastFlightActivityAt: z.string().nullable(),
+})
+
 export const platformTenantDetailResponseSchema =
   platformTenantSummarySchema.extend({
     members: z.array(platformTenantMemberSchema),
+    operationalSummary: operationalSummarySchema.nullable(),
   })
 
 export const setupStepSchema = z.object({
@@ -567,6 +575,7 @@ export type PlatformTenantDirectoryResponse = z.infer<
   typeof platformTenantDirectoryResponseSchema
 >
 export type PlatformTenantMember = z.infer<typeof platformTenantMemberSchema>
+export type OperationalSummary = z.infer<typeof operationalSummarySchema>
 export type PlatformTenantDetailResponse = z.infer<
   typeof platformTenantDetailResponseSchema
 >

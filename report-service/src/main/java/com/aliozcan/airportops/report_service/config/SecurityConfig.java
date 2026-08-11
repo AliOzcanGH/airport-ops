@@ -8,15 +8,20 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 
 @Configuration
 @EnableMethodSecurity
 public class SecurityConfig {
 
     private final IamJwtAuthenticationConverter iamJwtAuthenticationConverter;
+    private final InternalServiceSecretFilter internalServiceSecretFilter;
 
-    public SecurityConfig(IamJwtAuthenticationConverter iamJwtAuthenticationConverter) {
+    public SecurityConfig(
+            IamJwtAuthenticationConverter iamJwtAuthenticationConverter,
+            InternalServiceSecretFilter internalServiceSecretFilter) {
         this.iamJwtAuthenticationConverter = iamJwtAuthenticationConverter;
+        this.internalServiceSecretFilter = internalServiceSecretFilter;
     }
 
     @Bean
@@ -32,7 +37,11 @@ public class SecurityConfig {
                                 .authenticated()
                         .requestMatchers(HttpMethod.GET, "/organizations/*/reports/gate-utilization")
                                 .authenticated()
+                        // Guarded by InternalServiceSecretFilter instead of a JWT — no user session.
+                        .requestMatchers(HttpMethod.GET, "/internal/organizations/*/operational-summary")
+                                .permitAll()
                         .anyRequest().denyAll())
+                .addFilterBefore(internalServiceSecretFilter, BasicAuthenticationFilter.class)
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .jwt(jwt -> jwt
                                 .jwtAuthenticationConverter(iamJwtAuthenticationConverter)))
