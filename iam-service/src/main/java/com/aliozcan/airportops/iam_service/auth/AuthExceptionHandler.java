@@ -80,6 +80,8 @@ public class AuthExceptionHandler {
             "This email is already an active member of the organization";
     private static final String NO_WORKSPACE_CONTEXT_MESSAGE =
             "Authenticated user has no platform or tenant workspace context";
+    private static final String LOGIN_LOCKED_MESSAGE =
+            "Too many failed login attempts, try again later";
 
     @ExceptionHandler(InvalidLoginException.class)
     public ResponseEntity<ErrorResponse> handleInvalidLogin(
@@ -97,6 +99,17 @@ public class AuthExceptionHandler {
         );
 
         return ResponseEntity.status(status).body(response);
+    }
+
+    @ExceptionHandler(LoginLockedException.class)
+    public ResponseEntity<ErrorResponse> handleLoginLocked(
+            LoginLockedException exception,
+            HttpServletRequest request) {
+        return errorResponse(
+                HttpStatus.TOO_MANY_REQUESTS,
+                "LOGIN_LOCKED",
+                LOGIN_LOCKED_MESSAGE,
+                request);
     }
 
     @ExceptionHandler(UserNotProvisionedException.class)

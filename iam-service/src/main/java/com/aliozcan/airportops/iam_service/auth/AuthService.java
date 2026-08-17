@@ -21,23 +21,38 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PlatformAuthorizationRepository platformAuthorizationRepository;
     private final PasswordEncoder passwordEncoder;
+    private final LoginAttemptGuard loginAttemptGuard;
 
     public AuthService(
             UserRepository userRepository,
             PlatformAuthorizationRepository platformAuthorizationRepository,
-            PasswordEncoder passwordEncoder) {
+            PasswordEncoder passwordEncoder,
+            LoginAttemptGuard loginAttemptGuard) {
         this.userRepository = userRepository;
         this.platformAuthorizationRepository = platformAuthorizationRepository;
         this.passwordEncoder = passwordEncoder;
+        this.loginAttemptGuard = loginAttemptGuard;
     }
 
     public LoginResponse login(LoginRequest request) {
         String email = request.email().trim();
+        loginAttemptGuard.checkNotLocked(email);
 
+        try {
+            LoginResponse response = authenticate(email, request.password());
+            loginAttemptGuard.recordSuccess(email);
+            return response;
+        } catch (InvalidLoginException exception) {
+            loginAttemptGuard.recordFailure(email);
+            throw exception;
+        }
+    }
+
+    private LoginResponse authenticate(String email, String password) {
         UserEntity user = userRepository.findActiveLocalByEmail(email)
                 .orElseThrow(InvalidLoginException::new);
 
-        if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+        if (!passwordEncoder.matches(password, user.getPasswordHash())) {
             throw new InvalidLoginException();
         }
 
