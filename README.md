@@ -25,7 +25,10 @@ experimentation and incremental learning over production hardening.
 | --- | --- | --- |
 | Keycloak | Authentication provider and Keycloak access-token issuer | `http://127.0.0.1:8085` |
 | `iam-service` | IAM data owner, permission source, and OAuth2 Resource Server | `http://127.0.0.1:8081` |
-| `airport-service` | Early service skeleton with an Actuator health endpoint | `http://127.0.0.1:8082` |
+| `airport-service` | Stations, gates, and airport reference data | `http://127.0.0.1:8082` |
+| `flight-service` | Flight lifecycle and task management | `http://127.0.0.1:8083` |
+| `report-service` | Read models over flight/station events, Redis-cached | `http://127.0.0.1:8084` |
+| `audit-service` | Durable audit trail consumed from Kafka | `http://127.0.0.1:8086` |
 | Application PostgreSQL | `airport_ops_db` with separate application schemas | `127.0.0.1:5434` |
 | Keycloak PostgreSQL | Internal Keycloak metadata database; no host port | Docker network only |
 | Kafka | Local single-node KRaft infrastructure | `127.0.0.1:9092` |
@@ -41,26 +44,37 @@ application authorization source. Keycloak realm roles are visible as identity
 information but are not used as Spring Security authorities. IAM permission codes
 are converted to `GrantedAuthority` values for authorization decisions.
 
-Kafka and Redis are available in Docker Compose but are not yet connected to all
-business workflows.
+All five backend services and the frontend build and run as containers via
+`docker compose up` — see [Quickstart](#quickstart-docker-compose-full-stack).
+Each service also has a standalone Gradle/Dockerfile setup, so any one of them
+can still be run directly on the host during development.
 
 ## Repository Structure
 
 ```text
 .
-|-- airport-service/     Airport service skeleton
+|-- airport-service/     Stations, gates, and airport reference data
 |-- iam-service/         IAM, Keycloak integration, and authorization logic
+|-- flight-service/      Flight lifecycle and task management
+|-- report-service/      Read models and Redis-cached reports
+|-- audit-service/       Durable audit trail
 |-- web/                 React, TypeScript, and Vite operations shell
 |-- docker/              PostgreSQL initialization and Keycloak realm import
 |-- docs/adr/            Architecture decision records
-`-- docker-compose.yml   Local infrastructure
+`-- docker-compose.yml   Full local stack: infrastructure + all services + web
 ```
+
+Each backend service directory has its own multi-stage `Dockerfile`
+(Gradle build stage -> `eclipse-temurin` JRE runtime stage); `web/Dockerfile`
+builds the Vite app and serves it from nginx, which also reverse-proxies
+`/api` to `iam-service` inside the Docker network — the same role Vite's dev
+proxy plays on the host.
 
 ## Prerequisites
 
 - Docker Desktop with Docker Compose
-- Java 17 or newer
-- Node.js 20.19+ and npm
+- Java 17 or newer (only needed for the host-run path)
+- Node.js 20.19+ and npm (only needed for the host-run path)
 - PowerShell for the commands below
 
 ## Mandatory TOTP MFA
@@ -148,36 +162,84 @@ longer be usable. They may need to reset local MFA data or rebuild their local I
 database. This note applies only to disposable local-development data. No
 production MFA reset or recovery behavior is implemented yet.
 
-## Local Setup
+## Quickstart (Docker Compose full stack)
 
-Start all local infrastructure:
+The entire system — PostgreSQL, Keycloak, Kafka, Redis, all five backend
+services, and the frontend — starts with a single command. No local Java,
+Node, or Gradle installation is required for this path.
+
+1. Clone the repository and generate the mandatory MFA encryption key
+   (Windows PowerShell):
+
+   ```powershell
+   $bytes = New-Object byte[] 32
+   [Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
+   $env:APP_TOTP_ENCRYPTION_KEY = [Convert]::ToBase64String($bytes)
+   ```
+
+   This environment variable must be set in the same shell that runs
+   `docker compose up`. `iam-service` fails to start without it (see
+   [Mandatory TOTP MFA](#mandatory-totp-mfa)).
+
+2. Make sure `iam-service/iam-token-private-key.txt` exists — it holds the
+   RSA private key `iam-service` uses to sign its internal service-to-service
+   tokens, and is bind-mounted (never baked) into the `iam-service` image.
+   If the file is missing, generate a disposable local one (never reuse a
+   real key — see `AGENTS.md`):
+
+   ```powershell
+   openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out iam-service/temp-key.pem
+   openssl pkcs8 -topk8 -nocrypt -in iam-service/temp-key.pem -out iam-service/iam-token-private-key.txt
+   Remove-Item iam-service/temp-key.pem
+   ```
+
+3. Build and start everything:
+
+   ```powershell
+   docker compose up -d --build
+   docker compose ps
+   ```
+
+   Compose brings services up in dependency order: `postgres` and
+   `keycloak` become healthy first, then `iam-service` (which needs both),
+   then `airport-service` (which needs `iam-service`'s JWKS endpoint), then
+   `flight-service` (which needs `airport-service` and `kafka`), and
+   `report-service` / `audit-service` (which need `kafka`, and `redis` for
+   reports). `web` starts last, once `iam-service` is healthy. Each entry in
+   `docker compose ps` should reach `healthy`, not just `running` — a
+   container can report "running" while its Spring context is still coming
+   up, which is exactly the ordering problem `depends_on: condition:
+   service_healthy` in `docker-compose.yml` prevents.
+
+4. Open `http://127.0.0.1:5173` and log in with the seeded platform
+   administrator from [Local Demo Credentials](#local-demo-credentials).
+
+To stop everything (and keep data): `docker compose down`. To also wipe
+PostgreSQL and Keycloak data: `docker compose down -v`.
+
+Service ports on the host are unchanged from previous phases: `iam-service`
+on `8081`, `airport-service` on `8082`, `flight-service` on `8083`,
+`report-service` on `8084`, `audit-service` on `8086`, `web` on `5173`. Kafka's
+host-published port moved from `9092` to an `EXTERNAL` listener still exposed
+as `127.0.0.1:9092`, so any host-side Kafka tooling keeps working unchanged;
+internally, containers now reach Kafka at `kafka:9092`.
+
+### Running a single service on the host instead
+
+For debugging one service with a debugger attached, run the infrastructure in
+Docker but that one service on the host — stop its container first
+(`docker compose stop iam-service`) so the ports don't collide:
 
 ```powershell
-docker compose up -d
-docker compose ps
-```
-
-PostgreSQL is exposed as `5434:5432`: Spring applications connect to
-`127.0.0.1:5434`, while containers use port `5432` internally.
-
-Start `iam-service` in another terminal:
-
-```powershell
+docker compose up -d postgres keycloak kafka redis
 cd iam-service
 $env:APP_TOTP_ENCRYPTION_KEY="PASTE_GENERATED_BASE64_KEY"
 .\gradlew.bat bootRun
 ```
 
-Use the same generated key each time this local database is started.
-
-Optionally start `airport-service` in a separate terminal:
-
-```powershell
-cd airport-service
-.\gradlew.bat bootRun
-```
-
-Start the frontend in another terminal:
+Host-run services fall back to `127.0.0.1` addresses (`application.properties`
+defaults), so no extra environment variables are needed for this mode. Start
+the frontend against a host-run `iam-service` the same way as before:
 
 ```powershell
 cd web
@@ -186,15 +248,19 @@ npm run dev
 ```
 
 Open `http://127.0.0.1:5173`. During local development, Vite proxies `/api`
-requests to `iam-service` at `http://127.0.0.1:8081`, so backend CORS changes are
-not required.
+requests to `iam-service` at `http://127.0.0.1:8081`, so backend CORS changes
+are not required.
 
-Frontend public configuration is documented in `web/.env.example`. Values prefixed
-with `VITE_` are browser-visible configuration and must never contain passwords,
-tokens, client secrets, or administrator credentials.
+Frontend public configuration is documented in `web/.env.example`. Values
+prefixed with `VITE_` are browser-visible configuration and must never
+contain passwords, tokens, client secrets, or administrator credentials.
 
-Use `127.0.0.1` consistently for Keycloak and secured IAM requests. Mixing
-`localhost` and `127.0.0.1` can cause an issuer mismatch during JWT validation.
+Use `127.0.0.1` consistently for Keycloak and secured IAM requests when
+running on the host. Mixing `localhost` and `127.0.0.1` can cause an issuer
+mismatch during JWT validation, because the issuer claim on a Keycloak token
+is whatever host/port `iam-service` used to request it — this is also why
+the Docker Compose services all address Keycloak as `keycloak:8080`
+consistently rather than mixing that with a host-facing address.
 
 ## Local Demo Credentials
 
@@ -258,6 +324,27 @@ $tokenResponse = Invoke-RestMethod `
 ```
 
 The access token is available as `$tokenResponse.access_token`.
+
+> **Docker Compose note:** the token's `iss` claim is whatever host/port the
+> token was requested through. `iam-service` validates Bearer tokens against
+> `KEYCLOAK_ISSUER_URI`, which inside Docker Compose is `http://keycloak:8080/...`
+> (the internal service address `iam-service` itself uses) — not
+> `http://127.0.0.1:8085/...`. A token requested from the host via the
+> published port above will fail issuer validation when the full stack runs
+> in Compose. To get a token that validates, request it from inside the
+> Docker network instead:
+>
+> ```powershell
+> docker run --rm --network airport-ops_default curlimages/curl:latest `
+>   curl -s -X POST "http://keycloak:8080/realms/airport-ops/protocol/openid-connect/token" `
+>     -H "Content-Type: application/x-www-form-urlencoded" `
+>     -d "grant_type=password&client_id=airport-ops-local&username=platform.admin@demo.com&password=Admin123!"
+> ```
+>
+> This only matters for direct Bearer-token API testing. The browser flow
+> through `web` never talks to Keycloak directly (see
+> [ADR-003](docs/adr/ADR-003-backend-mediated-session-auth.md)) and is
+> unaffected.
 
 ## Endpoint Overview
 
