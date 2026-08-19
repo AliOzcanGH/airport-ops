@@ -6,6 +6,7 @@ import com.aliozcan.airportops.iam_service.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.time.Clock;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -25,7 +26,8 @@ class AuthServiceTests {
         AuthService service = new AuthService(
                 userRepository,
                 authorizationRepository,
-                passwordEncoder);
+                passwordEncoder,
+                new LoginAttemptGuard(Clock.systemUTC()));
         when(userRepository.findActiveLocalByEmail("keycloak@demo.com"))
                 .thenReturn(Optional.empty());
 

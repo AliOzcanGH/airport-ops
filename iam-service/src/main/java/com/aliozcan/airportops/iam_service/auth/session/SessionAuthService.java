@@ -1,5 +1,7 @@
 package com.aliozcan.airportops.iam_service.auth.session;
 
+import com.aliozcan.airportops.iam_service.auth.InvalidLoginException;
+import com.aliozcan.airportops.iam_service.auth.LoginAttemptGuard;
 import com.aliozcan.airportops.iam_service.auth.session.dto.MfaLoginChallengeResponse;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.stereotype.Service;
@@ -13,23 +15,37 @@ public class SessionAuthService {
     private final KeycloakSessionClient keycloakSessionClient;
     private final SessionCookieService cookieService;
     private final MfaLoginTransactionService mfaLoginTransactionService;
+    private final LoginAttemptGuard loginAttemptGuard;
     private final Clock clock;
 
     public SessionAuthService(
             KeycloakSessionClient keycloakSessionClient,
             SessionCookieService cookieService,
             MfaLoginTransactionService mfaLoginTransactionService,
+            LoginAttemptGuard loginAttemptGuard,
             Clock clock) {
         this.keycloakSessionClient = keycloakSessionClient;
         this.cookieService = cookieService;
         this.mfaLoginTransactionService = mfaLoginTransactionService;
+        this.loginAttemptGuard = loginAttemptGuard;
         this.clock = clock;
     }
 
     public MfaLoginChallengeResponse login(String email, String password) {
-        KeycloakTokenResponse tokens = keycloakSessionClient.login(email.trim(), password);
+        String normalizedEmail = email.trim();
+        loginAttemptGuard.checkNotLocked(normalizedEmail);
+
+        KeycloakTokenResponse tokens;
+        try {
+            tokens = keycloakSessionClient.login(normalizedEmail, password);
+        } catch (InvalidLoginException exception) {
+            loginAttemptGuard.recordFailure(normalizedEmail);
+            throw exception;
+        }
+        loginAttemptGuard.recordSuccess(normalizedEmail);
+
         return mfaLoginTransactionService.createChallenge(
-                email.trim(),
+                normalizedEmail,
                 tokens,
                 clock.instant());
     }
