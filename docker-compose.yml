@@ -32,15 +32,19 @@ services:
     image: apache/kafka:4.1.2
     container_name: airport-ops-kafka
     ports:
-      - "9092:9092"
+      - "9092:9094"
     environment:
       KAFKA_NODE_ID: "1"
       KAFKA_PROCESS_ROLES: broker,controller
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
-      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_LISTENERS: PLAINTEXT://:9092,EXTERNAL://:9094,CONTROLLER://:9093
+      # Two listeners: PLAINTEXT is for other containers on the Docker network
+      # (advertised as the service name), EXTERNAL is for host tools connecting
+      # through the published port (advertised as localhost so the client's
+      # follow-up connections after the initial handshake still resolve).
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,EXTERNAL://localhost:9092
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: "1"
@@ -80,6 +84,7 @@ services:
       KC_DB_PASSWORD: keycloak-pass
       IAM_SERVICE_ADMIN_CLIENT_SECRET: iam-service-admin-local-secret
       KEYCLOAK_SESSION_CLIENT_SECRET: iam-service-session-local-secret
+      KC_HEALTH_ENABLED: "true"
     ports:
       - "8085:8080"
     volumes:
@@ -87,6 +92,168 @@ services:
     depends_on:
       keycloak-postgres:
         condition: service_healthy
+    healthcheck:
+      # The Keycloak image ships without curl/wget, so the readiness probe is
+      # a raw HTTP request over bash's /dev/tcp against the management port.
+      test:
+        - "CMD-SHELL"
+        - >-
+          exec 3<>/dev/tcp/127.0.0.1/9000 &&
+          echo -e 'GET /health/ready HTTP/1.1\r\nhost: localhost\r\nConnection: close\r\n\r\n' >&3 &&
+          timeout 3 cat <&3 | grep -m 1 -q '"status": "UP"'
+      interval: 10s
+      timeout: 8s
+      retries: 20
+      start_period: 30s
+
+  iam-service:
+    build: ./iam-service
+    container_name: airport-ops-iam-service
+    environment:
+      IAM_DB_URL: jdbc:postgresql://postgres:5432/airport_ops_db?currentSchema=iam
+      IAM_DB_USERNAME: airport_user
+      IAM_DB_PASSWORD: strong-pass
+      KEYCLOAK_ADMIN_SERVER_URL: http://keycloak:8080
+      KEYCLOAK_SESSION_SERVER_URL: http://keycloak:8080
+      KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/airport-ops
+      APP_TOTP_ENCRYPTION_KEY: ${APP_TOTP_ENCRYPTION_KEY:?Set APP_TOTP_ENCRYPTION_KEY before starting (see README Local Setup)}
+      IAM_TOKEN_PRIVATE_KEY_PATH: /app/iam-token-private-key.txt
+      AIRPORT_SERVICE_BASE_URL: http://airport-service:8082
+      FLIGHT_SERVICE_BASE_URL: http://flight-service:8083
+      REPORT_SERVICE_URL: http://report-service:8084
+      AUDIT_SERVICE_URL: http://audit-service:8086
+      APP_INVITATION_ACCEPT_BASE_URL: http://127.0.0.1:5173/invitations/accept
+    ports:
+      - "8081:8081"
+    volumes:
+      - ./iam-service/iam-token-private-key.txt:/app/iam-token-private-key.txt:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  airport-service:
+    build: ./airport-service
+    container_name: airport-ops-airport-service
+    environment:
+      AIRPORT_DB_URL: jdbc:postgresql://postgres:5432/airport_ops_db?currentSchema=airport
+      AIRPORT_DB_USERNAME: airport_user
+      AIRPORT_DB_PASSWORD: strong-pass
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      IAM_JWKS_URI: http://iam-service:8081/.well-known/jwks.json
+    ports:
+      - "8082:8082"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      iam-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  flight-service:
+    build: ./flight-service
+    container_name: airport-ops-flight-service
+    environment:
+      FLIGHT_DB_URL: jdbc:postgresql://postgres:5432/airport_ops_db?currentSchema=flight
+      FLIGHT_DB_USERNAME: airport_user
+      FLIGHT_DB_PASSWORD: strong-pass
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      IAM_JWKS_URI: http://iam-service:8081/.well-known/jwks.json
+      AIRPORT_SERVICE_BASE_URL: http://airport-service:8082
+    ports:
+      - "8083:8083"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      iam-service:
+        condition: service_healthy
+      airport-service:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8083/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  report-service:
+    build: ./report-service
+    container_name: airport-ops-report-service
+    environment:
+      REPORT_DB_URL: jdbc:postgresql://postgres:5432/airport_ops_db?currentSchema=report
+      REPORT_DB_USERNAME: airport_user
+      REPORT_DB_PASSWORD: strong-pass
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      IAM_JWKS_URI: http://iam-service:8081/.well-known/jwks.json
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+    ports:
+      - "8084:8084"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8084/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  audit-service:
+    build: ./audit-service
+    container_name: airport-ops-audit-service
+    environment:
+      AUDIT_DB_URL: jdbc:postgresql://postgres:5432/airport_ops_db?currentSchema=audit
+      AUDIT_DB_USERNAME: airport_user
+      AUDIT_DB_PASSWORD: strong-pass
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      IAM_JWKS_URI: http://iam-service:8081/.well-known/jwks.json
+    ports:
+      - "8086:8086"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8086/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  web:
+    build: ./web
+    container_name: airport-ops-web
+    ports:
+      - "5173:80"
+    depends_on:
+      iam-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:80/"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
 
 volumes:
   postgres_data:
