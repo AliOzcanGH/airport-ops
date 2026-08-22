@@ -1,14 +1,235 @@
-# Mini Airport Operations Microservices Lab
+# Airport Ops
 
 [![CI](https://github.com/AliOzcanGH/airport-ops/actions/workflows/ci.yml/badge.svg)](https://github.com/AliOzcanGH/airport-ops/actions/workflows/ci.yml)
 
-Mini Airport Operations Microservices Lab is a learning-focused full-stack project for
-exploring microservices, identity and access management, Keycloak, permission-based
-authorization, database migrations, and multi-tenant design.
+## Overview
 
-This repository is not a production-ready airport operations product. Several
-endpoints, credentials, and infrastructure choices intentionally favor local
-experimentation and incremental learning over production hardening.
+Airport Ops is a learning-focused, full-stack microservices lab that models a
+small piece of airport ground operations — stations, gates, flights, and
+turnaround tasks — behind a proper identity and authorization boundary. It is
+five independently deployable Spring Boot services plus a React operations
+frontend, wired together with Keycloak (authentication), an IAM-owned
+PostgreSQL schema (application authorization), Kafka (cross-service events),
+Redis (read-model caching), and a GitHub Actions CI pipeline, all
+orchestrated locally with a single `docker compose up`.
+
+The project was built in weekly phases (W1–W20, see `docs/adr/phases/`), each
+one adding a bounded slice of the system and, deliberately, revisiting
+earlier decisions once they were tested under a new constraint — e.g. the
+RSA key-format bug from W8 resurfacing in Docker (W18) and again in CI
+(W19), or rate limiting only getting a real security pass in W17 once IDOR
+and privilege-escalation paths already existed to attack. It is not a
+production airport system: several endpoints, credentials, and
+infrastructure choices intentionally favor local experimentation and
+incremental learning over production hardening (see
+[Known Limitations](#known-limitations)).
+
+**Tech stack:** Java 17, Spring Boot 3.5, PostgreSQL 16, Flyway, Kafka
+(KRaft), Redis, Keycloak, React + TypeScript + Vite, Docker Compose, GitHub
+Actions.
+
+## Architecture
+
+```mermaid
+graph TD
+    Browser["Browser (web)"] -->|session cookie| iam[iam-service]
+    iam -->|Keycloak auth + JWKS| Keycloak
+    iam -->|proxy: internal token| airport[airport-service]
+    iam -->|proxy: internal token| flight[flight-service]
+    iam -->|proxy: internal token| report[report-service]
+    flight -->|Token Relay: stations/gates| airport
+    airport -->|station-events| Kafka
+    flight -->|flight-events| Kafka
+    Kafka --> report[report-service]
+    Kafka --> audit[audit-service]
+    report -.->|cache| Redis
+    iam --> PG[(PostgreSQL: iam/airport/flight/report/audit schemas)]
+    airport --> PG
+    flight --> PG
+    report --> PG
+    audit --> PG
+```
+
+`iam-service` is the only service the browser talks to directly; `web`'s
+nginx (or Vite's dev proxy on the host) forwards everything under `/api`
+there. `iam-service` then proxies authorized requests on to
+`airport-service`, `flight-service`, and `report-service`, and
+`flight-service` calls `airport-service` directly (Token Relay) to validate
+station and gate references during flight scheduling. `audit-service` and
+`report-service` never receive direct browser or proxied traffic — they only
+learn about the world by consuming Kafka events.
+
+## Service Boundaries
+
+| Service | Responsibility | Schema |
+| --- | --- | --- |
+| `iam-service` | Keycloak-backed authentication, mandatory TOTP MFA, IAM permission model, tenant/member/invitation management, and the API gateway the browser talks to | `iam` |
+| `airport-service` | Stations and gates (airport reference data), publishes station lifecycle events | `airport` |
+| `flight-service` | Flight lifecycle state machine and turnaround tasks, publishes flight lifecycle events | `flight` |
+| `report-service` | Redis-cached read models built from `airport-service`/`flight-service` Kafka events | `report` |
+| `audit-service` | Durable, append-only audit trail consumed independently from `flight-events` | `audit` |
+
+All five schemas live in one PostgreSQL database (`airport_ops_db`) —
+schema-per-service, not database-per-service (see
+[Known Limitations](#known-limitations)). Keycloak owns a separate internal
+PostgreSQL database for identity-provider metadata only; no application code
+reads it.
+
+## Authentication & Authorization Flow
+
+Two concerns are kept deliberately separate: **Keycloak** answers "who is
+this person," and the **IAM database** (owned by `iam-service`) answers
+"what are they allowed to do." Keycloak realm roles are visible as identity
+information but are never used as Spring Security authorities — IAM
+permission codes are converted to `GrantedAuthority` values instead. The
+browser never talks to Keycloak directly (see
+[ADR-003](docs/adr/ADR-003-backend-mediated-session-auth.md)); it only ever
+sees `iam-service`, over an HttpOnly, CSRF-protected session cookie.
+
+```mermaid
+sequenceDiagram
+    participant Browser
+    participant iam as iam-service
+    participant Keycloak
+
+    Browser->>iam: POST /auth/session/login (email + password)
+    iam->>Keycloak: verify credentials (Direct Access Grant)
+    Keycloak-->>iam: Keycloak access/refresh tokens
+    iam-->>Browser: 200 MFA_ENROLLMENT_REQUIRED or MFA_REQUIRED (no cookies yet)
+    Browser->>iam: POST /auth/session/mfa/verify (6-digit TOTP code)
+    iam->>iam: decrypt pending tokens, verify TOTP, resolve IAM permissions
+    iam-->>Browser: 204, HttpOnly session cookies set
+    Browser->>iam: GET /auth/me (cookie)
+    iam-->>Browser: identity + IAM roles/permissions
+```
+
+MFA is mandatory for every user (no SMS/email MFA, no Keycloak-hosted MFA
+UI); pending Keycloak tokens and TOTP secrets are encrypted at rest with
+`APP_TOTP_ENCRYPTION_KEY` while a challenge is in flight. Full details,
+including the local smoke-test checklist, are in
+[Mandatory TOTP MFA](#mandatory-totp-mfa) below.
+
+Downstream of login, `iam-service` proxies requests to `airport-service`,
+`flight-service`, and `report-service` using a short-lived internal token it
+signs itself (see [ADR-001](docs/adr/ADR-001-downstream-authorization-strategy.md)
+for why authorization is evaluated centrally in `iam-service` rather than
+duplicated per downstream service). `flight-service` in turn relays that
+context to `airport-service` when it needs to validate a station or gate.
+
+## Multi-Tenancy & Security Decisions
+
+Airport Ops is multi-tenant: every organization's stations, gates, flights,
+and members are isolated from every other organization's. Isolation is
+enforced with an **ownership-chain check** in each service-layer method
+(resolve the resource, confirm it belongs to the caller's organization,
+then act) rather than at the repository/query level — this was tested
+directly in the W17 security pass (IDOR, privilege escalation, mass
+assignment, token tampering, invitation-token replay all closed; see
+[docs/security-review-w17.md](docs/security-review-w17.md) for the full
+methodology and results). The one real vulnerability that pass found — login
+brute-forcing had no rate limit — was fixed in the same phase with an
+in-memory, per-account/IP limiter.
+
+The threat model that review covers: unauthenticated external attackers, and
+authenticated tenant users trying to reach another tenant's data. It
+explicitly does **not** cover a malicious platform admin (platform admins
+are trusted with cross-tenant access by design) or a compromised
+`X-Internal-Service-Secret` (the single control between `/internal/**`
+endpoints — see [Known Limitations](#known-limitations)).
+
+## Event-Driven Architecture
+
+Two Kafka topics carry cross-service state changes; nothing consumes them
+synchronously in the request path:
+
+| Producer | Topic | Consumers |
+| --- | --- | --- |
+| `airport-service` | `station-events` | `report-service` |
+| `flight-service` | `flight-events` | `report-service`, `audit-service` |
+
+`report-service` builds Redis-cached read models from both topics.
+`audit-service` consumes `flight-events` independently of
+`report-service`'s own consumer group, so it keeps a durable audit trail
+even if reporting's cache/read-model logic changes. Every Kafka-touching
+integration test uses `@EmbeddedKafka` rather than a shared broker (see
+`.github/workflows/ci.yml`), so no broker container is needed in CI.
+
+## Getting Started
+
+Full step-by-step instructions (MFA key generation, RSA signing key setup,
+health-check-based startup ordering, and a single-service-on-host debug
+path) are in [Quickstart (Docker Compose full stack)](#quickstart-docker-compose-full-stack)
+below. Short version:
+
+```powershell
+$bytes = New-Object byte[] 32
+[Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
+$env:APP_TOTP_ENCRYPTION_KEY = [Convert]::ToBase64String($bytes)
+
+# generate iam-service/iam-token-private-key.txt — see Quickstart step 2
+
+docker compose up -d --build
+docker compose ps   # wait for everything to report "healthy"
+```
+
+Then open `http://127.0.0.1:5173` and log in with the credentials in
+[Local Demo Credentials](#local-demo-credentials).
+
+## Demo Credentials
+
+Only a platform administrator is seeded; a tenant and its tenant admin are
+created afterward through the platform's own invitation flow (platform
+admin logs in → sends a tenant invitation → invitation is accepted). See
+[Local Demo Credentials](#local-demo-credentials) for the full table,
+including infrastructure credentials (PostgreSQL, Keycloak admin console).
+
+## Known Limitations
+
+- **Schema-per-service, not database-per-service** — all five schemas share
+  one PostgreSQL instance/database. Acceptable for a local lab; a real
+  deployment would want a stronger blast-radius boundary between services.
+- **No outbox pattern** — Kafka publishing happens alongside the
+  originating database write without a transactional outbox, so a crash
+  between the two can (rarely) leave them inconsistent. The invitation
+  email flow has the same class of gap: if SES succeeds but the
+  delivery-status update fails, the email may have gone out while the
+  invitation row still shows a stale status (accepted for the MVP; see the
+  Local SES section below).
+- **IDOR protection is service-layer, not repository-layer** — correct
+  today and locked in by regression tests, but a more fragile pattern than
+  scoping every query itself (e.g. `findByIdAndOrganizationId`). See
+  [docs/security-review-w17.md](docs/security-review-w17.md).
+- **Login rate limiting is in-memory and single-instance** — sufficient for
+  this project's single-instance topology; a multi-instance deployment
+  would need a shared (e.g. Redis-backed) limiter.
+- **No network-level isolation for `/internal/**` endpoints** — the shared
+  `X-Internal-Service-Secret` is the only control layer; there's no
+  network boundary enforcing it in `docker-compose.yml`.
+- **No member deactivate/remove endpoint** — a missing feature, not a
+  vulnerability; if added, it needs the same kind of self-action guard that
+  already protects role changes (`CannotModifyOwnRoleException`).
+- **Threat model excludes a malicious platform admin or a leaked internal
+  service secret** — both are treated as fully trusted/out of scope; see
+  [Multi-Tenancy & Security Decisions](#multi-tenancy--security-decisions).
+
+## Future Work
+
+This project is complete as a learning lab covering its original roadmap
+(IAM/Keycloak integration, multi-tenant authorization, event-driven
+services, Docker Compose orchestration, and CI). Remaining roadmap items
+that were explicitly deferred rather than forgotten:
+
+- A transactional outbox for Kafka publishing.
+- Repository-level (not just service-level) tenant scoping, as defense in
+  depth.
+- A Redis-backed, multi-instance login rate limiter.
+- Screenshots/demo GIFs of the operations frontend (see below).
+
+## Screenshots / Demo
+
+_Not yet captured — placeholder for a future documentation pass._
+
+---
 
 ## Learning Goals
 
@@ -18,8 +239,9 @@ experimentation and incremental learning over production hardening.
 - Protect Spring endpoints with IAM permissions and `@PreAuthorize`.
 - Manage database evolution with Flyway.
 - Explore multi-tenant data isolation and downstream authorization strategies.
-- Introduce Kafka and Redis infrastructure before connecting them to business flows.
+- Use Kafka and Redis in real business flows (flight/station events, cached reports).
 - Exercise backend workflows through a typed React operations interface.
+- Run the full stack from a single `docker compose up` and gate changes with CI.
 
 ## Current Architecture
 
@@ -63,6 +285,7 @@ can still be run directly on the host during development.
 |-- web/                 React, TypeScript, and Vite operations shell
 |-- docker/              PostgreSQL initialization and Keycloak realm import
 |-- docs/adr/            Architecture decision records
+|-- docs/security-review-w17.md   Security review methodology and results
 `-- docker-compose.yml   Full local stack: infrastructure + all services + web
 ```
 
@@ -285,6 +508,11 @@ consistently rather than mixing that with a host-facing address.
 | Keycloak Admin Console | `admin` | `admin-pass` |
 | Demo platform administrator | `platform.admin@demo.com` | `Admin123!` |
 
+Only the platform administrator above is seeded. There is no pre-seeded
+tenant or tenant admin — log in as the platform admin, send a tenant
+invitation from the operations UI, and accept it to create the first
+tenant and its tenant admin.
+
 The Keycloak client's direct access grant (password grant) is enabled only for this
 local lab and the manual verification commands below. It is not the recommended
 authentication flow for production applications.
@@ -310,10 +538,10 @@ For local testing:
 - Set `APP_INVITATION_DEV_LINK_ENABLED=false` outside local development so raw
   invitation links are not returned by the API.
 
-W5B intentionally does not include an outbox, retry, or resend endpoint. If SES
+There is no outbox, retry, or resend endpoint for invitation email. If SES
 succeeds but the delivery-status database update fails, the email may have been
 sent while the invitation row still shows a stale delivery status. That consistency
-gap is accepted for the MVP and should be addressed by a future retry/outbox phase.
+gap is accepted for this project (see [Known Limitations](#known-limitations)).
 
 ## Get a Keycloak Access Token
 
@@ -364,7 +592,7 @@ The access token is available as `$tokenResponse.access_token`.
 | `POST` | `/auth/session/mfa/verify` | Public plus CSRF | Verifies the challenge code and creates the HttpOnly cookie session. |
 | `GET` | `/auth/keycloak/me` | Bearer token | Shows identity claims from a validated Keycloak token. |
 | `GET` | `/auth/me` | Bearer token or session cookie | Canonical current-user endpoint combining Keycloak identity with the matching IAM user, roles, and permissions. |
-| `GET` | `/platform/authorization/probe` | Bearer token plus `platform:invitation:create` | Temporary K4 authorization probe. It validates permission enforcement and is not a business endpoint. |
+| `GET` | `/platform/authorization/probe` | Bearer token plus `platform:invitation:create` | Temporary authorization probe used to validate permission enforcement; not a business endpoint. |
 | `POST` | `/platform/invitations` | Bearer token plus `platform:invitation:create` | Creates a platform invitation. |
 | `POST` | `/invitations/validate` | Public | Validates an invitation token without changing state. |
 | `POST` | `/invitations/accept` | Public | Accepts an invitation and provisions IAM and Keycloak state. |
@@ -425,11 +653,14 @@ curl.exe -i "http://127.0.0.1:8081/platform/authorization/probe"
 
 ## Testing
 
-IAM integration tests use the real local PostgreSQL database and validate the
-existing Flyway state. Start PostgreSQL first:
+CI (`.github/workflows/ci.yml`) runs all of the following on every push and
+pull request against `main`: the five backend services' test suites in
+parallel (against real PostgreSQL and Redis service containers), frontend
+lint/test/build, and a `docker compose build` gate. To run the same checks
+locally:
 
 ```powershell
-docker compose up -d postgres
+docker compose up -d postgres redis
 
 cd iam-service
 .\gradlew.bat clean test
@@ -438,7 +669,8 @@ cd iam-service
 The IAM test suite provides a test `JwtDecoder`, so a running Keycloak container is
 not required for automated tests. PostgreSQL and the Flyway migrations are required.
 
-Run the airport service tests separately:
+Run any other backend service's tests the same way (`airport-service`,
+`flight-service`, `report-service`, `audit-service`):
 
 ```powershell
 cd airport-service
@@ -459,20 +691,10 @@ npm run build
 - [ADR-001: Downstream Authorization Strategy](docs/adr/ADR-001-downstream-authorization-strategy.md)
 - [ADR-002: Invitation Accept Provisioning Strategy](docs/adr/ADR-002-invitation-accept-provisioning-strategy.md)
 - [ADR-003: Backend-Mediated Browser Session Authentication](docs/adr/ADR-003-backend-mediated-session-auth.md)
+- [Security Review — W17](docs/security-review-w17.md): IDOR, privilege
+  escalation, mass assignment, token tampering, invitation replay, CSRF, rate
+  limiting, and internal-endpoint exposure, tested and documented.
 
-ADR-001 selects centralized authorization evaluation for the learning-phase
-downstream-service model. Resource services will relay the original Keycloak bearer
-token to an internal IAM authorization endpoint and fail closed when no decision can
-be obtained. The conceptual internal endpoint is documented but has not been
-implemented.
-
-## Project Status and Non-Goals
-
-This repository currently demonstrates IAM persistence, Keycloak authentication,
-identity-to-IAM mapping, permission-based endpoint protection, invitation
-provisioning, and a minimal React operations shell. It does not yet implement
-complete airport, flight, Kafka, Redis, or downstream authorization business flows.
-
-Current non-goals include production security hardening, custom JWT issuance, token
-exchange, a custom JWKS endpoint, permission caching, and production deployment
-automation.
+ADR-001 selects centralized authorization evaluation: resource services relay
+the caller's context to `iam-service`, which is the single source of
+permission decisions, and fail closed when no decision can be obtained.
