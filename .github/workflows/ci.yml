@@ -1,0 +1,154 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# A docker-build image built from an unreviewed PR should never be able to
+# touch anything outside this workflow run.
+permissions:
+  contents: read
+
+jobs:
+  backend-tests:
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - iam-service
+          - airport-service
+          - flight-service
+          - report-service
+          - audit-service
+    runs-on: ubuntu-latest
+    # Every backend service test suite boots a full Spring context against a
+    # real PostgreSQL (see e.g. iam-service's IamRepositoryIntegrationTests);
+    # report-service's ReportControllerIntegrationTests also talks to a real
+    # Redis. Kafka is not listed here on purpose: every Kafka-touching test
+    # uses @EmbeddedKafka (see flight-service's
+    # FlightEventPublishingIntegrationTests), so no broker service is needed.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: airport_ops_db
+          POSTGRES_USER: airport_user
+          POSTGRES_PASSWORD: strong-pass
+        # 5434, not the Postgres default 5432, to match every service's
+        # application.properties default (jdbc:postgresql://localhost:5434/...)
+        # so no per-service datasource env override is needed here.
+        ports:
+          - "5434:5432"
+        options: >-
+          --health-cmd "pg_isready -U airport_user -d airport_ops_db"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7.2-alpine
+        ports:
+          - "6379:6379"
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify gradlew was checked out with LF line endings
+        # W18 lesson: gradlew committed with CRLF breaks with "not found" on
+        # Linux. .gitattributes (added in W18) is supposed to prevent this on
+        # checkout — confirm it actually did, instead of finding out from a
+        # confusing gradle failure below.
+        run: |
+          if file "${{ matrix.service }}/gradlew" | grep -q CRLF; then
+            echo "::error::${{ matrix.service }}/gradlew has CRLF line endings — .gitattributes did not normalize it."
+            exit 1
+          fi
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "temurin"
+          cache: "gradle"
+
+      - name: Create application database schemas
+        env:
+          PGPASSWORD: strong-pass
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends postgresql-client
+          psql -h 127.0.0.1 -p 5434 -U airport_user -d airport_ops_db -v ON_ERROR_STOP=1 -c "
+            CREATE SCHEMA IF NOT EXISTS iam;
+            CREATE SCHEMA IF NOT EXISTS airport;
+            CREATE SCHEMA IF NOT EXISTS flight;
+            CREATE SCHEMA IF NOT EXISTS report;
+            CREATE SCHEMA IF NOT EXISTS audit;
+          "
+
+      - name: Generate a disposable RSA signing key (iam-service only)
+        if: matrix.service == 'iam-service'
+        # iam-service/config/IamTokenConfig.java loads this file eagerly for
+        # every Spring context in the module, so every iam-service test needs
+        # it, not just the ones that exercise signing directly. It is never
+        # committed (see AGENTS.md) and is regenerated fresh on every run —
+        # nothing about its value needs to be secret or stable, so this is a
+        # disposable openssl key, not a GitHub secret.
+        run: |
+          # genpkey alone (even with -outform DER) emits PKCS1, not PKCS8 —
+          # verified empirically. IamTokenConfig.iamSigningKey() decodes the
+          # file straight into a PKCS8EncodedKeySpec, so it must go through
+          # an explicit `pkcs8 -topk8` conversion, DER-encoded and base64'd
+          # with no line wrapping (the app trims but does not strip PEM
+          # headers or newlines from the middle of the value).
+          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 2>/dev/null \
+            | openssl pkcs8 -topk8 -nocrypt -outform DER 2>/dev/null \
+            | base64 -w0 > iam-service/iam-token-private-key.txt
+
+      - name: Run tests
+        working-directory: ${{ matrix.service }}
+        run: ./gradlew test --no-daemon
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports-${{ matrix.service }}
+          path: ${{ matrix.service }}/build/reports/tests
+          retention-days: 7
+
+  frontend-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: web/package-lock.json
+      - working-directory: web
+        run: |
+          # npm ci fails here: web/package-lock.json was generated on Windows
+          # and is missing Linux-only optional dependency entries (see the
+          # W18 Docker build fix in web/Dockerfile for the same issue).
+          npm install
+          npm run lint
+          npm run test
+          npm run build
+
+  docker-build:
+    needs: [backend-tests, frontend-tests]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build all images
+        env:
+          # docker-compose.yml requires APP_TOTP_ENCRYPTION_KEY via
+          # ${VAR:?...} so `docker compose config` doesn't fail while
+          # interpolating the file. `build` never starts a container, so the
+          # value just needs to be present — it does not need to be a real
+          # 32-byte key, and it is not a secret.
+          APP_TOTP_ENCRYPTION_KEY: "ci-build-placeholder-not-used-at-runtime"
+        run: docker compose build

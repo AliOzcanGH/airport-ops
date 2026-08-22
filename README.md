@@ -1,5 +1,7 @@
 # Mini Airport Operations Microservices Lab
 
+[![CI](https://github.com/AliOzcanGH/airport-ops/actions/workflows/ci.yml/badge.svg)](https://github.com/AliOzcanGH/airport-ops/actions/workflows/ci.yml)
+
 Mini Airport Operations Microservices Lab is a learning-focused full-stack project for
 exploring microservices, identity and access management, Keycloak, permission-based
 authorization, database migrations, and multi-tenant design.
@@ -189,9 +191,16 @@ Node, or Gradle installation is required for this path.
 
    ```powershell
    openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out iam-service/temp-key.pem
-   openssl pkcs8 -topk8 -nocrypt -in iam-service/temp-key.pem -out iam-service/iam-token-private-key.txt
-   Remove-Item iam-service/temp-key.pem
+   openssl pkcs8 -topk8 -nocrypt -in iam-service/temp-key.pem -outform DER -out iam-service/temp-key.der
+   openssl base64 -A -in iam-service/temp-key.der -out iam-service/iam-token-private-key.txt
+   Remove-Item iam-service/temp-key.pem, iam-service/temp-key.der
    ```
+
+   `iam-token-private-key.txt` must be a single line of raw base64-encoded
+   PKCS8 DER — no `-----BEGIN PRIVATE KEY-----` headers, no line wrapping.
+   `IamTokenConfig` base64-decodes the file's trimmed content directly; a
+   PEM-formatted file (the output of `pkcs8 -topk8` without `-outform DER`,
+   or of `genpkey`'s default PEM output) fails to decode.
 
 3. Build and start everything:
 
