@@ -96,7 +96,7 @@ class IamTokenControllerIntegrationTests {
         assertThat(stringList(claims, "permissions")).containsExactly(
                 "platform:invitation:create", "tenant:manage", "tenant:read");
         assertThat(stringList(claims, "aud"))
-                .containsExactly("airport-service", "flight-service", "audit-service");
+                .containsExactly("airport-service", "flight-service", "audit-service", "report-service");
         assertThat(Duration.between(
                 signedJWT.getJWTClaimsSet().getIssueTime().toInstant(),
                 signedJWT.getJWTClaimsSet().getExpirationTime().toInstant()))

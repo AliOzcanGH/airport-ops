@@ -40,7 +40,10 @@ public class PlatformAuditProxyService {
 
     private ResponseEntity<String> forward(RestClient.RequestHeadersSpec<?> request) {
         try {
-            return request.retrieve().toEntity(String.class);
+            ResponseEntity<String> response = request.retrieve().toEntity(String.class);
+            return ResponseEntity.status(response.getStatusCode())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(response.getBody());
         } catch (RestClientResponseException exception) {
             return ResponseEntity.status(exception.getStatusCode())
                     .contentType(MediaType.APPLICATION_JSON)
