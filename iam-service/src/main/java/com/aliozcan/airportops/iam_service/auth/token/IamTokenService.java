@@ -33,9 +33,11 @@ public class IamTokenService {
 
     private static final String ISSUER = "airport-ops-iam";
     // Token Relay (W10): flight-service forwards this same token unchanged to
-    // airport-service, so it must carry both services' audiences.
+    // airport-service, so it must carry both services' audiences. Also carries
+    // audit-service's and report-service's audiences since both validate this
+    // same internally-issued token via their own JWKS-backed resource server.
     private static final List<String> AUDIENCE =
-            List.of("airport-service", "flight-service", "audit-service");
+            List.of("airport-service", "flight-service", "audit-service", "report-service");
 
     private final UserRepository userRepository;
     private final PlatformAuthorizationRepository platformAuthorizationRepository;
