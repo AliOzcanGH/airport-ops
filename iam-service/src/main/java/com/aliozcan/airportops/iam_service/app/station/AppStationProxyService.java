@@ -39,11 +39,14 @@ public class AppStationProxyService {
         UUID organizationId = organizationIdOf(tokenResponse.iamAccessToken());
 
         try {
-            return airportServiceRestClient.get()
+            ResponseEntity<String> response = airportServiceRestClient.get()
                     .uri("/organizations/{orgId}/stations", organizationId)
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenResponse.iamAccessToken())
                     .retrieve()
                     .toEntity(String.class);
+            return ResponseEntity.status(response.getStatusCode())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(response.getBody());
         } catch (RestClientResponseException exception) {
             return ResponseEntity.status(exception.getStatusCode())
                     .contentType(MediaType.APPLICATION_JSON)
@@ -56,13 +59,16 @@ public class AppStationProxyService {
         UUID organizationId = organizationIdOf(tokenResponse.iamAccessToken());
 
         try {
-            return airportServiceRestClient.post()
+            ResponseEntity<String> response = airportServiceRestClient.post()
                     .uri("/organizations/{orgId}/stations", organizationId)
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenResponse.iamAccessToken())
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(requestBody)
                     .retrieve()
                     .toEntity(String.class);
+            return ResponseEntity.status(response.getStatusCode())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(response.getBody());
         } catch (RestClientResponseException exception) {
             return ResponseEntity.status(exception.getStatusCode())
                     .contentType(MediaType.APPLICATION_JSON)

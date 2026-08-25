@@ -227,7 +227,11 @@ that were explicitly deferred rather than forgotten:
 
 ## Screenshots / Demo
 
-_Not yet captured — placeholder for a future documentation pass._
+Screenshots/GIFs are not yet captured (still a future documentation pass),
+but a full 15-step, URL-by-URL demo script exists and was run end-to-end
+against a clean Docker Compose stack:
+[docs/demo-script.md](docs/demo-script.md). It also documents the one
+regression that run found in the browser-facing proxy routes.
 
 ---
 
