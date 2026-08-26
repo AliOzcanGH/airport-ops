@@ -146,12 +146,17 @@ complete" badge appears next to the section heading.
 ### 15. View audit logs and reports
 
 - Tenant audit trail: `http://127.0.0.1:5173/app/audit-logs` (tenant admin
-  only) — confirm entries appear for the actions above (station/gate
-  creation, flight creation, status changes, task completions).
+  only) — confirm entries appear for the flight actions above (flight
+  creation, status changes, task completions). Station and gate creation
+  do **not** appear here — audit coverage is partial by design, see
+  [Known Limitations](../README.md#known-limitations).
 - Platform audit trail: log back in as the platform admin
   (`/login?switchAccount=true`, then the platform admin credentials) and
-  open `http://127.0.0.1:5173/platform/audit-logs` — confirm the tenant
-  invitation and acceptance appear.
+  open `http://127.0.0.1:5173/platform/audit-logs` — this aggregates the
+  same flight-lifecycle entries across tenants. The tenant invitation and
+  acceptance from steps 4–6 do **not** appear here; invitation lifecycle
+  events are not audited yet (see
+  [Known Limitations](../README.md#known-limitations)).
 - Reports: as the tenant admin, open
   `http://127.0.0.1:5173/app/reports`, pick the date used for the flight in
   step 12, and confirm **Daily flight summary** and **Gate utilization**
