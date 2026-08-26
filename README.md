@@ -208,6 +208,13 @@ including infrastructure credentials (PostgreSQL, Keycloak admin console).
 - **No member deactivate/remove endpoint** — a missing feature, not a
   vulnerability; if added, it needs the same kind of self-action guard that
   already protects role changes (`CannotModifyOwnRoleException`).
+- **Audit trail coverage is partial** — only flight lifecycle events
+  (`FLIGHT_CREATED`, `FLIGHT_STATUS_CHANGED`, `TASK_COMPLETED`) and member
+  role changes are captured. Station/gate creation and invitation lifecycle
+  events are not yet audited (`station-events` has no `audit-service`
+  consumer; the invitation flow has no direct audit write). This is a scope
+  decision made in W14 to demonstrate the pattern, not a completeness
+  guarantee.
 - **Threat model excludes a malicious platform admin or a leaked internal
   service secret** — both are treated as fully trusted/out of scope; see
   [Multi-Tenancy & Security Decisions](#multi-tenancy--security-decisions).
