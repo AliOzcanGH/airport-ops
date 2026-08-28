@@ -28,6 +28,22 @@ incremental learning over production hardening (see
 (KRaft), Redis, Keycloak, React + TypeScript + Vite, Docker Compose, GitHub
 Actions.
 
+To run the whole stack locally, see
+[Quickstart (Docker Compose full stack)](#quickstart-docker-compose-full-stack)
+below.
+
+## Learning Goals
+
+- Model authentication and application authorization as separate concerns.
+- Use Keycloak as an OpenID Connect identity provider.
+- Resolve application roles and permissions from an IAM-owned PostgreSQL schema.
+- Protect Spring endpoints with IAM permissions and `@PreAuthorize`.
+- Manage database evolution with Flyway.
+- Explore multi-tenant data isolation and downstream authorization strategies.
+- Use Kafka and Redis in real business flows (flight/station events, cached reports).
+- Exercise backend workflows through a typed React operations interface.
+- Run the full stack from a single `docker compose up` and gate changes with CI.
+
 ## Architecture
 
 ```mermaid
@@ -61,19 +77,37 @@ learn about the world by consuming Kafka events.
 
 ## Service Boundaries
 
-| Service | Responsibility | Schema |
-| --- | --- | --- |
-| `iam-service` | Keycloak-backed authentication, mandatory TOTP MFA, IAM permission model, tenant/member/invitation management, and the API gateway the browser talks to | `iam` |
-| `airport-service` | Stations and gates (airport reference data), publishes station lifecycle events | `airport` |
-| `flight-service` | Flight lifecycle state machine and turnaround tasks, publishes flight lifecycle events | `flight` |
-| `report-service` | Redis-cached read models built from `airport-service`/`flight-service` Kafka events | `report` |
-| `audit-service` | Durable, append-only audit trail consumed independently from `flight-events` | `audit` |
+| Component | Responsibility | Schema | Local address |
+| --- | --- | --- | --- |
+| `iam-service` | Keycloak-backed authentication, mandatory TOTP MFA, IAM permission model, tenant/member/invitation management, and the API gateway the browser talks to | `iam` | `http://127.0.0.1:8081` |
+| `airport-service` | Stations and gates (airport reference data), publishes station lifecycle events | `airport` | `http://127.0.0.1:8082` |
+| `flight-service` | Flight lifecycle state machine and turnaround tasks, publishes flight lifecycle events | `flight` | `http://127.0.0.1:8083` |
+| `report-service` | Redis-cached read models built from `airport-service`/`flight-service` Kafka events | `report` | `http://127.0.0.1:8084` |
+| `audit-service` | Durable, append-only audit trail consumed independently from `flight-events` | `audit` | `http://127.0.0.1:8086` |
+| Keycloak | Authentication provider and Keycloak access-token issuer | — | `http://127.0.0.1:8085` |
+| `web` | React operations shell and local backend workflow client | — | `http://127.0.0.1:5173` |
+| Application PostgreSQL | `airport_ops_db` with separate application schemas | `iam`, `airport`, `flight`, `report`, `audit` | `127.0.0.1:5434` |
+| Keycloak PostgreSQL | Internal Keycloak metadata database; no host port | — | Docker network only |
+| Kafka | Local single-node KRaft infrastructure | — | `127.0.0.1:9092` |
+| Redis | Local cache infrastructure | — | `127.0.0.1:6379` |
 
 All five schemas live in one PostgreSQL database (`airport_ops_db`) —
 schema-per-service, not database-per-service (see
-[Known Limitations](#known-limitations)). Keycloak owns a separate internal
-PostgreSQL database for identity-provider metadata only; no application code
-reads it.
+[Known Limitations](#known-limitations)). Keycloak uses its own PostgreSQL
+service and database for identity-provider metadata only; no application
+code reads it.
+
+Keycloak is the authentication source. `iam-service` and the IAM database
+are the application authorization source. Keycloak realm roles are visible
+as identity information but are not used as Spring Security authorities;
+IAM permission codes are converted to `GrantedAuthority` values for
+authorization decisions.
+
+All five backend services and the frontend build and run as containers via
+`docker compose up` — see
+[Quickstart](#quickstart-docker-compose-full-stack) below. Each service
+also has a standalone Gradle/Dockerfile setup, so any one of them can still
+be run directly on the host during development.
 
 ## Authentication & Authorization Flow
 
@@ -154,35 +188,6 @@ even if reporting's cache/read-model logic changes. Every Kafka-touching
 integration test uses `@EmbeddedKafka` rather than a shared broker (see
 `.github/workflows/ci.yml`), so no broker container is needed in CI.
 
-## Getting Started
-
-Full step-by-step instructions (MFA key generation, RSA signing key setup,
-health-check-based startup ordering, and a single-service-on-host debug
-path) are in [Quickstart (Docker Compose full stack)](#quickstart-docker-compose-full-stack)
-below. Short version:
-
-```powershell
-$bytes = New-Object byte[] 32
-[Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
-$env:APP_TOTP_ENCRYPTION_KEY = [Convert]::ToBase64String($bytes)
-
-# generate iam-service/iam-token-private-key.txt — see Quickstart step 2
-
-docker compose up -d --build
-docker compose ps   # wait for everything to report "healthy"
-```
-
-Then open `http://127.0.0.1:5173` and log in with the credentials in
-[Local Demo Credentials](#local-demo-credentials).
-
-## Demo Credentials
-
-Only a platform administrator is seeded; a tenant and its tenant admin are
-created afterward through the platform's own invitation flow (platform
-admin logs in → sends a tenant invitation → invitation is accepted). See
-[Local Demo Credentials](#local-demo-credentials) for the full table,
-including infrastructure credentials (PostgreSQL, Keycloak admin console).
-
 ## Known Limitations
 
 - **Schema-per-service, not database-per-service** — all five schemas share
@@ -232,57 +237,12 @@ that were explicitly deferred rather than forgotten:
 - A Redis-backed, multi-instance login rate limiter.
 - Screenshots/demo GIFs of the operations frontend (see below).
 
-## Screenshots / Demo
-
-Screenshots/GIFs are not yet captured (still a future documentation pass),
-but a full 15-step, URL-by-URL demo script exists and was run end-to-end
-against a clean Docker Compose stack:
-[docs/demo-script.md](docs/demo-script.md). It also documents the one
-regression that run found in the browser-facing proxy routes.
-
 ---
 
-## Learning Goals
+# Running This Project
 
-- Model authentication and application authorization as separate concerns.
-- Use Keycloak as an OpenID Connect identity provider.
-- Resolve application roles and permissions from an IAM-owned PostgreSQL schema.
-- Protect Spring endpoints with IAM permissions and `@PreAuthorize`.
-- Manage database evolution with Flyway.
-- Explore multi-tenant data isolation and downstream authorization strategies.
-- Use Kafka and Redis in real business flows (flight/station events, cached reports).
-- Exercise backend workflows through a typed React operations interface.
-- Run the full stack from a single `docker compose up` and gate changes with CI.
-
-## Current Architecture
-
-| Component | Responsibility | Local address |
-| --- | --- | --- |
-| Keycloak | Authentication provider and Keycloak access-token issuer | `http://127.0.0.1:8085` |
-| `iam-service` | IAM data owner, permission source, and OAuth2 Resource Server | `http://127.0.0.1:8081` |
-| `airport-service` | Stations, gates, and airport reference data | `http://127.0.0.1:8082` |
-| `flight-service` | Flight lifecycle and task management | `http://127.0.0.1:8083` |
-| `report-service` | Read models over flight/station events, Redis-cached | `http://127.0.0.1:8084` |
-| `audit-service` | Durable audit trail consumed from Kafka | `http://127.0.0.1:8086` |
-| Application PostgreSQL | `airport_ops_db` with separate application schemas | `127.0.0.1:5434` |
-| Keycloak PostgreSQL | Internal Keycloak metadata database; no host port | Docker network only |
-| Kafka | Local single-node KRaft infrastructure | `127.0.0.1:9092` |
-| Redis | Local cache infrastructure | `127.0.0.1:6379` |
-| `web` | React operations shell and local backend workflow client | `http://127.0.0.1:5173` |
-
-Application data uses one PostgreSQL database with the `iam`, `airport`, `flight`,
-`report`, and `audit` schemas. Keycloak uses its own PostgreSQL service and database
-for identity-provider metadata.
-
-Keycloak is the authentication source. `iam-service` and the IAM database are the
-application authorization source. Keycloak realm roles are visible as identity
-information but are not used as Spring Security authorities. IAM permission codes
-are converted to `GrantedAuthority` values for authorization decisions.
-
-All five backend services and the frontend build and run as containers via
-`docker compose up` — see [Quickstart](#quickstart-docker-compose-full-stack).
-Each service also has a standalone Gradle/Dockerfile setup, so any one of them
-can still be run directly on the host during development.
+The sections below are for anyone who wants to actually run or extend the
+system locally.
 
 ## Repository Structure
 
@@ -312,91 +272,6 @@ proxy plays on the host.
 - Java 17 or newer (only needed for the host-run path)
 - Node.js 20.19+ and npm (only needed for the host-run path)
 - PowerShell for the commands below
-
-## Mandatory TOTP MFA
-
-MFA is required for every Airport Ops user. The only supported MFA method is a
-time-based one-time password (TOTP) generated by an authenticator app. SMS MFA,
-email MFA, and a Keycloak-hosted MFA UI are not supported. Keycloak remains behind
-`iam-service` and is not presented directly to users.
-
-The user-facing browser flow is:
-
-- First login: email and password -> QR enrollment -> 6-digit authenticator code
-  -> session.
-- Later logins: email and password -> 6-digit authenticator code -> session.
-
-### Backend encryption key
-
-`APP_TOTP_ENCRYPTION_KEY` is a required backend environment variable. It is a
-backend-only secret: users never see it and never enter it. The value must be a
-base64-encoded 32-byte key. `iam-service` uses it to encrypt stored TOTP secrets
-and temporary pending Keycloak access-token and refresh-token payloads held while
-an MFA login challenge is active.
-
-Missing or invalid key configuration causes backend startup to fail by design.
-Do not commit or log this key. Keep using the same key with the same local IAM
-database. If the key changes or is lost, existing encrypted TOTP credentials and
-pending challenge payloads cannot be decrypted.
-
-Generate a key in Windows PowerShell:
-
-```powershell
-$bytes = New-Object byte[] 32
-[Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
-[Convert]::ToBase64String($bytes)
-```
-
-Copy the generated base64 value into the backend terminal environment:
-
-```powershell
-$env:APP_TOTP_ENCRYPTION_KEY="PASTE_GENERATED_BASE64_KEY"
-```
-
-### Enrollment security warning
-
-The QR code, `otpauth` URI, and manual entry key are sensitive enrollment
-material. Do not share screenshots containing the QR code or manual key in real
-environments. Anyone who obtains the manual key can configure another compatible
-authenticator app and generate valid MFA codes for that account.
-
-### Browser network expectations
-
-When the frontend runs through the local Vite proxy:
-
-- `POST /api/auth/session/login` returns `200 OK` with either
-  `MFA_ENROLLMENT_REQUIRED` or `MFA_REQUIRED`. It does not set session cookies.
-- `POST /api/auth/session/mfa/verify` returns `204 No Content` after a valid code
-  and sets the HttpOnly session cookies.
-- `GET /api/auth/me` returns `200 OK` after successful MFA verification and
-  remains the canonical current-user endpoint.
-
-Access and refresh tokens are never returned to frontend code. The frontend does
-not store MFA challenge data or decode JWTs.
-
-### Local MFA smoke checklist
-
-- [ ] Open a clean or incognito browser window.
-- [ ] Log in with an existing user.
-- [ ] Confirm the QR enrollment screen appears on the first login.
-- [ ] Scan the QR code with Google Authenticator, Microsoft Authenticator, Authy,
-      or another compatible authenticator app.
-- [ ] Enter the current 6-digit code.
-- [ ] Confirm `/api/auth/me` succeeds and the browser redirects to the expected
-      workspace.
-- [ ] Log out.
-- [ ] Log in again with the same user.
-- [ ] Confirm the authenticator-code screen appears instead of QR enrollment.
-- [ ] Enter the current code and confirm the workspace redirect.
-- [ ] Try one incorrect code and confirm that no login session is created.
-
-### Local-only MFA reset note
-
-If a developer loses access to their authenticator app or changes
-`APP_TOTP_ENCRYPTION_KEY`, the encrypted MFA data in their local database may no
-longer be usable. They may need to reset local MFA data or rebuild their local IAM
-database. This note applies only to disposable local-development data. No
-production MFA reset or recovery behavior is implemented yet.
 
 ## Quickstart (Docker Compose full stack)
 
@@ -530,6 +405,99 @@ authentication flow for production applications.
 
 Keycloak Admin Console: `http://127.0.0.1:8085/admin`
 
+## Screenshots / Demo
+
+Screenshots/GIFs are not yet captured (still a future documentation pass),
+but a full 15-step, URL-by-URL demo script exists and was run end-to-end
+against a clean Docker Compose stack:
+[docs/demo-script.md](docs/demo-script.md). It also documents the one
+regression that run found in the browser-facing proxy routes.
+
+## Mandatory TOTP MFA
+
+MFA is required for every Airport Ops user. The only supported MFA method is a
+time-based one-time password (TOTP) generated by an authenticator app. SMS MFA,
+email MFA, and a Keycloak-hosted MFA UI are not supported. Keycloak remains behind
+`iam-service` and is not presented directly to users.
+
+The user-facing browser flow is:
+
+- First login: email and password -> QR enrollment -> 6-digit authenticator code
+  -> session.
+- Later logins: email and password -> 6-digit authenticator code -> session.
+
+### Backend encryption key
+
+`APP_TOTP_ENCRYPTION_KEY` is a required backend environment variable. It is a
+backend-only secret: users never see it and never enter it. The value must be a
+base64-encoded 32-byte key. `iam-service` uses it to encrypt stored TOTP secrets
+and temporary pending Keycloak access-token and refresh-token payloads held while
+an MFA login challenge is active.
+
+Missing or invalid key configuration causes backend startup to fail by design.
+Do not commit or log this key. Keep using the same key with the same local IAM
+database. If the key changes or is lost, existing encrypted TOTP credentials and
+pending challenge payloads cannot be decrypted.
+
+Generate a key in Windows PowerShell:
+
+```powershell
+$bytes = New-Object byte[] 32
+[Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
+[Convert]::ToBase64String($bytes)
+```
+
+Copy the generated base64 value into the backend terminal environment:
+
+```powershell
+$env:APP_TOTP_ENCRYPTION_KEY="PASTE_GENERATED_BASE64_KEY"
+```
+
+### Enrollment security warning
+
+The QR code, `otpauth` URI, and manual entry key are sensitive enrollment
+material. Do not share screenshots containing the QR code or manual key in real
+environments. Anyone who obtains the manual key can configure another compatible
+authenticator app and generate valid MFA codes for that account.
+
+### Browser network expectations
+
+When the frontend runs through the local Vite proxy:
+
+- `POST /api/auth/session/login` returns `200 OK` with either
+  `MFA_ENROLLMENT_REQUIRED` or `MFA_REQUIRED`. It does not set session cookies.
+- `POST /api/auth/session/mfa/verify` returns `204 No Content` after a valid code
+  and sets the HttpOnly session cookies.
+- `GET /api/auth/me` returns `200 OK` after successful MFA verification and
+  remains the canonical current-user endpoint.
+
+Access and refresh tokens are never returned to frontend code. The frontend does
+not store MFA challenge data or decode JWTs.
+
+### Local MFA smoke checklist
+
+- [ ] Open a clean or incognito browser window.
+- [ ] Log in with an existing user.
+- [ ] Confirm the QR enrollment screen appears on the first login.
+- [ ] Scan the QR code with Google Authenticator, Microsoft Authenticator, Authy,
+      or another compatible authenticator app.
+- [ ] Enter the current 6-digit code.
+- [ ] Confirm `/api/auth/me` succeeds and the browser redirects to the expected
+      workspace.
+- [ ] Log out.
+- [ ] Log in again with the same user.
+- [ ] Confirm the authenticator-code screen appears instead of QR enrollment.
+- [ ] Enter the current code and confirm the workspace redirect.
+- [ ] Try one incorrect code and confirm that no login session is created.
+
+### Local-only MFA reset note
+
+If a developer loses access to their authenticator app or changes
+`APP_TOTP_ENCRYPTION_KEY`, the encrypted MFA data in their local database may no
+longer be usable. They may need to reset local MFA data or rebuild their local IAM
+database. This note applies only to disposable local-development data. No
+production MFA reset or recovery behavior is implemented yet.
+
 ## Local SES Invitation Email Setup
 
 Platform invitation creation can send real invitation email through AWS SESv2.
@@ -593,24 +561,6 @@ The access token is available as `$tokenResponse.access_token`.
 > through `web` never talks to Keycloak directly (see
 > [ADR-003](docs/adr/ADR-003-backend-mediated-session-auth.md)) and is
 > unaffected.
-
-## Endpoint Overview
-
-| Method | Path | Access | Purpose |
-| --- | --- | --- | --- |
-| `POST` | `/auth/login` | Public | Legacy custom-login learning endpoint. It verifies the IAM demo password but is not the primary authentication flow and does not issue a token. |
-| `POST` | `/auth/session/login` | Public plus CSRF | Verifies email and password and returns a mandatory TOTP enrollment or verification challenge without issuing session cookies. |
-| `POST` | `/auth/session/mfa/verify` | Public plus CSRF | Verifies the challenge code and creates the HttpOnly cookie session. |
-| `GET` | `/auth/keycloak/me` | Bearer token | Shows identity claims from a validated Keycloak token. |
-| `GET` | `/auth/me` | Bearer token or session cookie | Canonical current-user endpoint combining Keycloak identity with the matching IAM user, roles, and permissions. |
-| `GET` | `/platform/authorization/probe` | Bearer token plus `platform:invitation:create` | Temporary authorization probe used to validate permission enforcement; not a business endpoint. |
-| `POST` | `/platform/invitations` | Bearer token plus `platform:invitation:create` | Creates a platform invitation. |
-| `POST` | `/invitations/validate` | Public | Validates an invitation token without changing state. |
-| `POST` | `/invitations/accept` | Public | Accepts an invitation and provisions IAM and Keycloak state. |
-
-The primary browser authentication flow is the backend-mediated mandatory MFA
-session flow. Direct Keycloak token retrieval remains available only for local
-manual API verification and Bearer-token compatibility testing.
 
 ## Manual Verification
 
@@ -696,6 +646,24 @@ npm run lint
 npm run test
 npm run build
 ```
+
+## Endpoint Overview
+
+| Method | Path | Access | Purpose |
+| --- | --- | --- | --- |
+| `POST` | `/auth/login` | Public | Legacy custom-login learning endpoint. It verifies the IAM demo password but is not the primary authentication flow and does not issue a token. |
+| `POST` | `/auth/session/login` | Public plus CSRF | Verifies email and password and returns a mandatory TOTP enrollment or verification challenge without issuing session cookies. |
+| `POST` | `/auth/session/mfa/verify` | Public plus CSRF | Verifies the challenge code and creates the HttpOnly cookie session. |
+| `GET` | `/auth/keycloak/me` | Bearer token | Shows identity claims from a validated Keycloak token. |
+| `GET` | `/auth/me` | Bearer token or session cookie | Canonical current-user endpoint combining Keycloak identity with the matching IAM user, roles, and permissions. |
+| `GET` | `/platform/authorization/probe` | Bearer token plus `platform:invitation:create` | Temporary authorization probe used to validate permission enforcement; not a business endpoint. |
+| `POST` | `/platform/invitations` | Bearer token plus `platform:invitation:create` | Creates a platform invitation. |
+| `POST` | `/invitations/validate` | Public | Validates an invitation token without changing state. |
+| `POST` | `/invitations/accept` | Public | Accepts an invitation and provisions IAM and Keycloak state. |
+
+The primary browser authentication flow is the backend-mediated mandatory MFA
+session flow. Direct Keycloak token retrieval remains available only for local
+manual API verification and Bearer-token compatibility testing.
 
 ## Architecture Decision Records
 
